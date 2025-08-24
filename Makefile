@@ -27,17 +27,17 @@ gen:
 	$(GO) generate -x ./...
 
 APP_CMD_DIR := cmd
-APP_CMD_OUTPUT := _output/bin
+APP_CMD_OUTPUT := _output
 
 CMD_SUBDIRS := $(shell find $(APP_CMD_DIR) -mindepth 1 -maxdepth 1 -type d)
-APP_CMD_BIN_TARGETS := $(patsubst %,$(APP_CMD_OUTPUT)/%,$(notdir $(CMD_SUBDIRS)))
+APP_CMD_BIN_TARGETS := $(patsubst %,$(APP_CMD_OUTPUT)/bin/%,$(notdir $(CMD_SUBDIRS)))
 
 bpf-sync:
 	@mkdir -p $(APP_CMD_OUTPUT)/bpf
 	@cp $(BPF_DIR)/*.o $(APP_CMD_OUTPUT)/bpf || true
 
 build: $(APP_CMD_BIN_TARGETS)
-$(APP_CMD_OUTPUT)/%: $(APP_CMD_DIR)/% CMD_FORCE
+$(APP_CMD_OUTPUT)/bin/%: $(APP_CMD_DIR)/% CMD_FORCE
 	$(GO_BUILD_STATIC_WITH_VERSION) -o $@ ./$<
 
 CMD_FORCE:;
