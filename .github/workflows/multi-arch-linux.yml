@@ -13,7 +13,11 @@ jobs:
       matrix:
         include:
           - arch: amd64
-            image: amd64/ubuntu:22.04
+            image: ubuntu:22.04
+          - arch: amd64
+            image: ubuntu:24.04
+          - arch: amd64
+            image: fedora:42
           - arch: ppc64le
             image: ppc64le/ubuntu:22.04
           - arch: s390x
@@ -30,6 +34,5 @@ jobs:
 
     - name: Test on ${{ matrix.arch }}
       run: |
-        docker run --rm --platform linux/${{ matrix.arch }} \
-          -v $(pwd):/workspace -w /workspace ${{ matrix.image }} \
+        docker run --rm --platform linux/${{ matrix.arch }} -v $(pwd):/workspace -w /workspace ${{ matrix.image }} \
           sh -c "uname -a"
