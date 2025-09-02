@@ -1,5 +1,8 @@
 简体中文 | [English](./README_EN.md)
 
+1
+2
+
 ![](./docs/huatuo-logo-v3.png)
 
 # 什么是 HUATUO
