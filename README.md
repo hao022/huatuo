@@ -73,5 +73,11 @@
 @[nashuiliang](https://github.com/nashuiliang)  
 @[fanzu8](https://github.com/fanzuba)  
 
+
+# 点星历史
+
+[![Star History Chart](https://api.star-history.com/svg?repos=ccfos/huatuo&type=Date)](https://www.star-history.com/#ccfos/huatuo&Date)
+
+
 # 开源协议
 该项目采用 Apache License 2.0 协议开源，BPF 代码采用 GPL 协议。
