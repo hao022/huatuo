@@ -28,13 +28,9 @@ struct {
 SEC("kprobe/carrier_down_count_show")
 int BPF_KPROBE(carrier_down_count_show, struct device *dev)
 {
-	struct net_device *netdev;
-	u64 value;
-	u32 key;
-	
-	netdev = container_of(dev, struct net_device, dev);
-	key = BPF_CORE_READ(netdev, ifindex);
-	value = BPF_CORE_READ(netdev, rx_dropped.counter);
+	struct net_device *netdev = container_of(dev, struct net_device, dev);
+	u32 key			  = BPF_CORE_READ(netdev, ifindex);
+	u64 value		  = BPF_CORE_READ(netdev, rx_dropped.counter);
 
 	bpf_map_update_elem(&rx_sw_dropped_stats, &key, &value, COMPAT_BPF_ANY);
 	return 0;

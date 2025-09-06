@@ -37,9 +37,9 @@ import (
 // currently supports mlx5_core, i40e, ixgbe, bnxt_en; will be removed in future
 var netDeviceDriver = []string{"mlx5_core", "i40e", "ixgbe", "bnxt_en", "virtio_net"}
 
-type netHwStat struct {
+type netdevHw struct {
 	prog                bpf.BPF
-	metrics             []*metric.Data
+	data                []*metric.Data
 	isTracerRunning     bool
 	ifaceSwDropCounters map[string]uint64
 	ifaceList           map[string]int
@@ -47,14 +47,15 @@ type netHwStat struct {
 
 //go:generate $BPF_COMPILE $BPF_INCLUDE -s $BPF_DIR/netdev_hw.c -o $BPF_DIR/netdev_hw.o
 func init() {
-	tracing.RegisterEventTracing("netdev_hw", newNetStatHw)
+	tracing.RegisterEventTracing("netdev_hw", newNetdevHw)
 }
 
-func newNetStatHw() (*tracing.EventTracingAttr, error) {
+func newNetdevHw() (*tracing.EventTracingAttr, error) {
 	interfaces, err := sysfsutil.DefaultNetClassDevices()
 	if err != nil {
 		return nil, err
 	}
+
 	log.Infof("processing interfaces: %v", interfaces)
 
 	eth, err := ethtool.NewEthtool()
@@ -70,8 +71,9 @@ func newNetStatHw() (*tracing.EventTracingAttr, error) {
 		if err != nil {
 			continue
 		}
-		// Skip processing if the interface is not in the whitelist or the driver is not allowed
-		if !slices.Contains(conf.Get().Tracing.Netdev.Whitelist, iface) || !slices.Contains(netDeviceDriver, drvInfo.Driver) {
+		// skip processing if the interface is not in the whitelist or the driver is not allowed
+		if !slices.Contains(conf.Get().Tracing.Netdev.Whitelist, iface) ||
+			!slices.Contains(netDeviceDriver, drvInfo.Driver) {
 			log.Debugf("%s is skipped (not in whitelist or driver not allowed)", iface)
 			continue
 		}
@@ -79,21 +81,19 @@ func newNetStatHw() (*tracing.EventTracingAttr, error) {
 		ifaceIndex[iface] = len(ifaceRxDropped)
 
 		ifaceRxDropped = append(ifaceRxDropped, metric.NewGaugeData(
-			"rx_dropped", 0,
-			"Count of packets dropped at hardware level",
+			"rx_dropped", 0, "count of packets dropped at hardware level",
 			map[string]string{
 				"device": iface,
 				"driver": drvInfo.Driver,
 			},
 		))
 
-		log.Debugf("support iface %s [%s] rx_dropped, and metric idx %d",
-			iface, drvInfo.Driver, ifaceIndex[iface])
+		log.Debugf("support iface %s [%s] rx_dropped, and metric idx %d", iface, drvInfo.Driver, ifaceIndex[iface])
 	}
 
 	return &tracing.EventTracingAttr{
-		TracingData: &netHwStat{
-			metrics:             ifaceRxDropped,
+		TracingData: &netdevHw{
+			data:                ifaceRxDropped,
 			ifaceList:           ifaceIndex,
 			ifaceSwDropCounters: make(map[string]uint64),
 		},
@@ -102,14 +102,17 @@ func newNetStatHw() (*tracing.EventTracingAttr, error) {
 	}, nil
 }
 
-// Update refreshes the drop statistics metrics
-func (ds *netHwStat) Update() ([]*metric.Data, error) {
-	if !ds.isTracerRunning {
+// Update the drop statistics metrics
+func (netdev *netdevHw) Update() ([]*metric.Data, error) {
+	if !netdev.isTracerRunning {
 		return nil, nil
 	}
 
-	hwDropCounters := make(map[string]uint64)
-	for iface := range ds.ifaceList {
+	if err := netdev.updateIfaceSwDropCounter(); err != nil {
+		return nil, err
+	}
+
+	for iface := range netdev.ifaceList {
 		counters := map[string]uint64{
 			"rx_dropped":       0,
 			"rx_missed_errors": 0,
@@ -119,47 +122,42 @@ func (ds *netHwStat) Update() ([]*metric.Data, error) {
 			counters[name], _ = readStat(iface, name)
 		}
 
-		if err := ds.updateSwRxDropped(iface); err != nil {
-			log.Warnf("update sw map: %v", err)
-			continue
-		}
-
 		count := counters["rx_missed_errors"]
-		// 1. no hwdrop
-		// 2. or rx_missed_errors is not used.
+		// 1. no hwdrop or 2. rx_missed_errors is not used.
 		if count == 0 {
 			// hwdrop = rx_dropped - software_drops
-			if sw, ok := ds.ifaceSwDropCounters[iface]; ok {
+			if sw, ok := netdev.ifaceSwDropCounters[iface]; ok {
 				count = counters["rx_dropped"] - sw
 			}
 		}
 
-		hwDropCounters[iface] = count
+		netdev.data[netdev.ifaceList[iface]].Value = float64(count)
 	}
 
-	for iface, count := range hwDropCounters {
-		ds.metrics[ds.ifaceList[iface]].Value = float64(count)
-	}
-
-	return ds.metrics, nil
+	return netdev.data, nil
 }
 
 func readStat(iface, stat string) (uint64, error) {
 	return parseutil.ReadUint(filepath.Join("/sys/class/net", iface, "statistics", stat))
 }
 
-func (ds *netHwStat) updateSwRxDropped(iface string) error {
-	// update/dump bpf map
-	_, _ = parseutil.ReadUint("/sys/class/net/" + iface + "/carrier_down_count")
+func (netdev *netdevHw) updateIfaceSwDropCounter() error {
+	for iface := range netdev.ifaceList {
+		_, _ = parseutil.ReadUint("/sys/class/net/" + iface + "/carrier_down_count")
+	}
 
-	items, err := ds.prog.DumpMapByName("rx_sw_dropped_stats")
+	// dump rx_dropped counters
+	items, err := netdev.prog.DumpMapByName("rx_sw_dropped_stats")
 	if err != nil {
 		return err
 	}
 
-	var ifidx uint32
-	var counter uint64
 	for _, v := range items {
+		var (
+			ifidx   uint32
+			counter uint64
+		)
+
 		if err := binary.Read(bytes.NewReader(v.Key), binary.LittleEndian, &ifidx); err != nil {
 			return fmt.Errorf("read map key: %w", err)
 		}
@@ -172,14 +170,17 @@ func (ds *netHwStat) updateSwRxDropped(iface string) error {
 			return err
 		}
 
-		log.Debugf("[rx_sw_dropped_stats] %s => %d", ifi.Name, counter)
-		ds.ifaceSwDropCounters[ifi.Name] = counter
+		// iface can be dynamically added while huatuo is running.
+		if _, ok := netdev.ifaceSwDropCounters[ifi.Name]; ok {
+			log.Debugf("[rx_sw_dropped_stats] %s => %d", ifi.Name, counter)
+			netdev.ifaceSwDropCounters[ifi.Name] = counter
+		}
 	}
 
 	return nil
 }
 
-func (ds *netHwStat) Start(ctx context.Context) error {
+func (netdev *netdevHw) Start(ctx context.Context) error {
 	prog, err := bpf.LoadBpf(bpf.ThisBpfOBJ(), nil)
 	if err != nil {
 		return fmt.Errorf("LoadBpf %s: %w", bpf.ThisBpfOBJ(), err)
@@ -195,11 +196,11 @@ func (ds *netHwStat) Start(ctx context.Context) error {
 
 	prog.WaitDetachByBreaker(childCtx, cancel)
 
-	ds.prog = prog
-	ds.isTracerRunning = true
+	netdev.prog = prog
+	netdev.isTracerRunning = true
 
 	<-childCtx.Done()
 
-	ds.isTracerRunning = false
+	netdev.isTracerRunning = false
 	return nil
 }
