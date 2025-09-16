@@ -1,10 +1,10 @@
-简体中文 | [English](./README_CN.md)
+English | [简体中文](./README_CN.md)
 
 ![](./docs/huatuo-logo-v3.png)
 
 # What is HUATUO
 
-**HUATUO** is a cloud-native operating system observability project open-sourced by **Didi** and incubated under the **CCF Open Source Development Technical Committee**. It focuses on delivering deep, kernel-level observability for complex cloud-native environments. Built on [eBPF](https://docs.kernel.org/userspace-api/ebpf/syscall.html) technology, it integrates kernel dynamic tracing techniques such as [kprobe](https://www.kernel.org/doc/html/latest/trace/kprobes.html), [tracepoint](https://www.kernel.org/doc/html/latest/trace/tracepoints.html), and [ftrace](https://www.kernel.org/doc/html/latest/trace/ftrace.html) to provide multi-dimensional kernel observability: **1.** Fine-grained metrics for kernel subsystems **2.** Event-driven capture of kernel runtime context during anomalies **3.** Automated tracing (AutoTracing) and profiling (AutoProfiling) for sudden system performance spikes. HUATUO has established a comprehensive deep observability architecture for the Linux kernel. It is already deployed at scale within Didi's production environment, where it plays a critical role in various failure scenarios, effectively ensuring high availability and performance optimization for cloud-native operating systems. Through continuous technological evolution, HUATUO aims to advance eBPF technology in the cloud-native observability domain towards finer granularity, lower overhead, and higher efficiency. Visit our official website for more information: [https://huatuo.tech](https://huatuo.tech/).
+**HUATUO** is a cloud-native operating system observability project open-sourced by **Didi** and incubated under the **CCF**. It focuses on delivering deep, kernel-level observability for complex cloud-native environments. Built on [eBPF](https://docs.kernel.org/userspace-api/ebpf/syscall.html) technology, it integrates kernel dynamic tracing techniques such as [kprobe](https://www.kernel.org/doc/html/latest/trace/kprobes.html), [tracepoint](https://www.kernel.org/doc/html/latest/trace/tracepoints.html), and [ftrace](https://www.kernel.org/doc/html/latest/trace/ftrace.html) to provide multi-dimensional kernel observability: **1.** Fine-grained metrics for kernel subsystems **2.** Event-driven capture of kernel runtime context during anomalies **3.** Automated tracing (AutoTracing) and profiling (AutoProfiling) for sudden system performance spikes. HUATUO has established a comprehensive deep observability architecture for the Linux kernel. It is already deployed at scale within Didi's production environment, where it plays a critical role in various failure scenarios, effectively ensuring high availability and performance optimization for cloud-native operating systems. Through continuous technological evolution, HUATUO aims to advance eBPF technology in the cloud-native observability domain towards finer granularity, lower overhead, and higher efficiency. Visit our official website for more information: [https://huatuo.tech](https://huatuo.tech/).
 
 # Core Features
 
@@ -21,7 +21,7 @@
 
 # Getting Started
 
-- **Quick Experience**
+- **Quick Run**
   If you are primarily interested in the underlying principles and not concerned with storage or frontend display, we provide a pre-built image that includes the necessary components for running HUATUO. Simply execute:
 
     ```bash
@@ -53,9 +53,9 @@
 
   For more detailed information, please refer to: [Quick Start](./docs/quick-start.md) or [https://huatuo.tech/quickstart/](https://huatuo.tech/quickstart/)
 
-# Supported Kernel Versions
+# Kernel Versions
 
-Theoretically supports all kernel versions after 4.18. Primary tested kernels and operating system distributions include:
+Supports all kernel versions after 4.18. Primary tested kernels and operating system distributions include:
 
 | HUATUO | Kernel Version | OS Distribution                               |
 | :----- | :------------- | :-------------------------------------------- |
@@ -75,10 +75,6 @@ For more information, visit our official website: [https://huatuo.tech](https://
 @[hao022](https://github.com/hao022)
 @[nashuiliang](https://github.com/nashuiliang)
 @[fanzu8](https://github.com/fanzuba)
-
-# Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=ccfos/huatuo&type=Date)](https://www.star-history.com/#ccfos/huatuo&Date)
 
 # License
 
