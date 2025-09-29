@@ -3,3 +3,4 @@
 bpf/include/vmlinux.h
 _output/
 ./dist
+.goreleaser.yaml
