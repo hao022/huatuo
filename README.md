@@ -22,6 +22,7 @@ English | [简体中文](./README_CN.md)
 # Getting Started
 
 - **Quick Run**
+
   Use the docker cli to launch the huatuo service:
 
         $ docker run --privileged --cgroupns=host --network=host -v /sys:/sys -v /run:/run huatuo/huatuo-bamai:latest
@@ -31,23 +32,18 @@ English | [简体中文](./README_CN.md)
         $ curl -s localhost:19704/metrics
 
 - **Quick Setup**
+
   Launch the Elasticsearch, Prometheus, Grafana, and huatuo services using docker compose. Once the services are running, access [http://localhost:3000](http://localhost:3000/) via your web browser.
 
         $ docker compose --project-directory ./build/docker
 
-- ![](./docs/img/quickstart-components.png)
+  ![](./docs/img/quickstart-components.png)  
 
-  <div style="text-align: center; margin: 8px 0 20px 0; color: #777;">
-  <small>
-  HUATUO Component Operation Diagram<br>
-  </small>
-  </div>
-
- For more information, please refer to: [Quick Start](./docs/quick-start.md) or [https://huatuo.tech/quickstart/](https://huatuo.tech/quickstart/)
+  For more information, please refer to: [Quick Start](./docs/quick-start.md) or [https://huatuo.tech/quickstart/](https://huatuo.tech/quickstart/)
 
 # Kernel Versions
 
-Supports all kernel versions from 4.18 and later.:
+Supports kernel versions from 4.18 and later.
 
 | HUATUO | Kernel Version | OS Distribution                               |
 | :----- | :------------- | :-------------------------------------------- |
