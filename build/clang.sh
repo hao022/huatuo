@@ -49,7 +49,8 @@ done
 [ -z "${SRC}" ] && echo -e "-s must be specified, such as -c example.bpf.c \n\n $(usage)" && exit 1
 [ -z "${OBJ}" ] && echo -e "-o must be specified, such as -o example.o \n\n $(usage)" && exit 1
 
-
+echo 11111111111111
+uname --machine
 # Note: parameter ${DEFAULT_COMPILE_OPTIONS} will be overwritten by ${COMPILE_OPTIONS} in ${OPTIONS}
 OPTIONS="${DEFAULT_COMPILE_OPTIONS} ${COMPILE_OPTIONS}"
 [ -z "${INCLUDES}" ] && INCLUDES="${DEFAULT_INCLUDES}"
