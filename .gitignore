@@ -2,4 +2,4 @@
 
 bpf/include/vmlinux.h
 _output/
-cmd/**/bin/
+./dist
