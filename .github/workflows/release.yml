@@ -38,11 +38,11 @@ jobs:
       - name: Extract files
         run: |
           tmpdir="huatuo-${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.arch }}"
-          mkdir -p $tmpdir
 
           docker create --name tmp-container huatuo/huatuo-bamai:latest
-          docker cp tmp-container:/home/huatuo-bamai/* $tmpdir/
+          docker cp tmp-container:/home/huatuo-bamai .
           docker rm tmp-container
+          mv huatuo-bamai $tmpdir
 
           tree $tmpdir
           tar zcvf ${tmpdir}.tar.gz ${tmpdir} 
