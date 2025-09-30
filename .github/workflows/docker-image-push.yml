@@ -43,3 +43,10 @@ jobs:
           tags: |
             huatuo/huatuo-bamai:latest
           # huatuo/huatuo-bamai:${{ steps.date.outputs.today }}
+      - name: Extract files
+        run: |
+          docker create --name tmp-container huatuo/huatuo-bamai:latest
+          docker cp tmp-container:/home ./tmp-home
+          docker rm tmp-container
+          
+          tree ./tmp-home
