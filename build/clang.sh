@@ -16,34 +16,19 @@ OBJ=
 INCLUDES=
 DEFAULT_INCLUDES="-I include -I include/4.18.0-193.6.3.el8_2.x86_64"
 
-# bpf_tracing.h
+# libbpf bpf_tracing.h
 #
-# #if defined(__TARGET_ARCH_x86)
-# 	#define bpf_target_x86
-# 	#define bpf_target_defined
-# #elif defined(__TARGET_ARCH_s390)
-# 	#define bpf_target_s390
-# 	#define bpf_target_defined
-# #elif defined(__TARGET_ARCH_arm)
-# 	#define bpf_target_arm
-# 	#define bpf_target_defined
-# #elif defined(__TARGET_ARCH_arm64)
-# 	#define bpf_target_arm64
-# 	#define bpf_target_defined
-# #elif defined(__TARGET_ARCH_mips)
-# 	#define bpf_target_mips
-# 	#define bpf_target_defined
-# #elif defined(__TARGET_ARCH_powerpc)
-# 	#define bpf_target_powerpc
-# 	#define bpf_target_defined
-# #elif defined(__TARGET_ARCH_sparc)
-# 	#define bpf_target_sparc
-# 	#define bpf_target_defined
-# #else
-#
+# __TARGET_ARCH_x86
+# __TARGET_ARCH_s390
+# __TARGET_ARCH_arm
+# __TARGET_ARCH_arm64
+# __TARGET_ARCH_mips
+# __TARGET_ARCH_powerpc
+# __TARGET_ARCH_sparc
 # ...
 #
 ARCH=$(uname --machine | sed 's/x86_64/x86/' | sed 's/aarch64/arm64/')
+
 COMPILE_OPTIONS=
 DEFAULT_COMPILE_OPTIONS="-Wall -O2 -g -target bpf -D__TARGET_ARCH_${ARCH} -mcpu=v1 -c"
 
