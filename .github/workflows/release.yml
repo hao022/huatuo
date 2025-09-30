@@ -52,4 +52,4 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           token: ${{ secrets.HUATUO_RELEASE_TOKEN }}
-          files: "huatuo-${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.arch }}".tar.gz
+          files: *.tar.gz
