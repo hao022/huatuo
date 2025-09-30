@@ -58,7 +58,7 @@ jobs:
           uname -a 
           ls -l
       - name: Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v1
         with:
           files: "huatuo-${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.arch }}".tar.gz
           tag_name: "v${{ github.event.inputs.version }}"
