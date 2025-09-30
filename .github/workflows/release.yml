@@ -48,8 +48,12 @@ jobs:
 
           tree $tmpdir
           tar zcf ${tmpdir}.tar.gz ${tmpdir} 
+
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
+          draft: true
+          tag_name: "v${{ github.event.inputs.version }}"
+          generate_release_notes: true
           token: ${{ secrets.HUATUO_RELEASE_TOKEN }}
           files: *.tar.gz
