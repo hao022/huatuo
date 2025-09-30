@@ -43,7 +43,13 @@ jobs:
           docker cp tmp-container:/home/huatuo-bamai .
           docker rm tmp-container
           mv huatuo-bamai $tmpdir
+          cp LICENSE $tmpdir 
+          cp README*.md $tmpdir
 
           tree $tmpdir
-          tar zcvf ${tmpdir}.tar.gz ${tmpdir} 
-          ls -l
+          tar zcf ${tmpdir}.tar.gz ${tmpdir} 
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          token: ${{ secrets.HUATUO_RELEASE_TOKEN }}
+          files: "huatuo-${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.arch }}".tar.gz
