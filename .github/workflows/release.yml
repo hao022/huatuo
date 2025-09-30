@@ -57,9 +57,8 @@ jobs:
           tar zcvf ${tmpdir}.tar.gz ${tmpdir} 
           uname -a 
           ls -l
-      - name: Release project
+      - name: Release
         uses: softprops/action-gh-release@v2
         if: github.ref_type == 'tag'
         with:
-          token: ${{ secrets.HUATUO_RELEASE_TOKEN }}
           files: "huatuo-${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.arch }}".tar.gz
