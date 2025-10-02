@@ -11,14 +11,9 @@ on:
         default: "warning"
       tags:
         description: "test scenario tags"
-
 jobs:
   buildx:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        os: [linux]
-        arch: [amd64, arm64]
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -32,22 +27,27 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-          platforms: ${{ matrix.os }}/${{ matrix.arch }}
+          platforms: linux/amd64,linux/arm64
           push: false
           tags: huatuo/huatuo-bamai:latest
       - name: Extract files
         run: |
-          tmpdir="huatuo-${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.arch }}"
+          # same as docker build platforms
+          platforms="amd64 arm64"
+          for arch in $platforms; do
+            tmpdir="huatuo-${{ github.ref_name }}-linux-${arch}"
 
-          docker create --name tmp-container huatuo/huatuo-bamai:latest
-          docker cp tmp-container:/home/huatuo-bamai .
-          docker rm tmp-container
-          mv huatuo-bamai $tmpdir
-          cp LICENSE $tmpdir 
-          cp README*.md $tmpdir
+            docker create --platform linux/${arch} --name tmp-container huatuo/huatuo-bamai:latest
+            docker cp tmp-container:/home/huatuo-bamai .
+            docker rm tmp-container
+            mv huatuo-bamai $tmpdir
+            cp LICENSE $tmpdir 
+            cp README*.md $tmpdir
 
-          tree $tmpdir
-          tar zcf ${tmpdir}.tar.gz ${tmpdir} 
+            tree $tmpdir
+            tar zcf ${tmpdir}.tar.gz ${tmpdir} 
+          done
+          ls -l
 
       - name: Release
         uses: softprops/action-gh-release@v1
