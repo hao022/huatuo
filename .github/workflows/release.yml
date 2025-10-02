@@ -40,14 +40,17 @@ jobs:
             docker create --platform linux/${arch} --name tmp-container huatuo/huatuo-bamai:latest
             docker cp tmp-container:/home/huatuo-bamai .
             docker rm tmp-container
+
             mv huatuo-bamai $tmpdir
+            
             cp LICENSE $tmpdir 
             cp README*.md $tmpdir
+            
+            file $tmpdir/bin/huatuo-bamai 
 
             tree $tmpdir
             tar zcf ${tmpdir}.tar.gz ${tmpdir} 
           done
-          ls -l
 
       - name: Release
         uses: softprops/action-gh-release@v1
