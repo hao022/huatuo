@@ -49,5 +49,7 @@ jobs:
           draft: false
           generate_release_notes: true
           token: ${{ secrets.HUATUO_RELEASE_TOKEN }}
+          fail_on_unmatched_files: true
+          body_path: docs/CHANGELOG/CHANGELOG-${{ github.ref_name }}.md
           files: |
             huatuo-${{ github.ref_name }}-linux-*.tar.gz
