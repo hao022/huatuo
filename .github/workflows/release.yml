@@ -50,8 +50,6 @@ jobs:
           draft: false
           generate_release_notes: true
           token: ${{ secrets.HUATUO_RELEASE_TOKEN }}
-          tag_name: ${{ steps.tag.outputs.tag }}
-          # same as docker build
+          # tag_name: ${{ steps.tag.outputs.tag }}
           files: |
-            "huatuo-${{ github.ref_name }}-linux-amd64.tar.gz
-            "huatuo-${{ github.ref_name }}-linux-arm64.tar.gz
+            "huatuo-${{ github.ref_name }}-linux-*.tar.gz
