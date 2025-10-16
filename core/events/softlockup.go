@@ -26,6 +26,8 @@ import (
 	"huatuo-bamai/internal/utils/kmsgutil"
 	"huatuo-bamai/pkg/metric"
 	"huatuo-bamai/pkg/tracing"
+
+	"github.com/cloudflare/backoff"
 )
 
 //go:generate $BPF_COMPILE $BPF_INCLUDE -s $BPF_DIR/softlockup.c -o $BPF_DIR/softlockup.o
@@ -45,7 +47,9 @@ type SoftLockupTracerData struct {
 }
 
 type softLockupTracing struct {
-	data []*metric.Data
+	data            []*metric.Data
+	backoff         *backoff.Backoff
+	nextAllowedTime time.Time
 }
 
 func init() {
@@ -53,11 +57,15 @@ func init() {
 }
 
 func newSoftLockup() (*tracing.EventTracingAttr, error) {
+	bo := backoff.NewWithoutJitter(3*time.Hour, 10*time.Minute)
+	bo.SetDecay(1 * time.Hour)
+
 	return &tracing.EventTracingAttr{
 		TracingData: &softLockupTracing{
 			data: []*metric.Data{
 				metric.NewGaugeData("counter", 0, "softlockup counter", nil),
 			},
+			backoff: bo,
 		},
 		Internal: 10,
 		Flag:     tracing.FlagTracing | tracing.FlagMetric,
@@ -99,12 +107,19 @@ func (c *softLockupTracing) Start(ctx context.Context) error {
 				return fmt.Errorf("ReadFromPerfEvent fail: %w", err)
 			}
 
+			atomic.AddInt64(&softlockupCounter, 1)
+
+			now := time.Now()
+			if now.Before(c.nextAllowedTime) {
+				continue
+			}
+
+			c.nextAllowedTime = now.Add(c.backoff.Duration())
+
 			bt, err := kmsgutil.GetAllCPUsBT()
 			if err != nil {
 				bt = err.Error()
 			}
-
-			atomic.AddInt64(&softlockupCounter, 1)
 
 			storage.Save("softlockup", "", time.Now(), &SoftLockupTracerData{
 				CPU:       data.CPU,
