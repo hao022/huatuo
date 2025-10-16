@@ -48,7 +48,7 @@ type HungTaskTracerData struct {
 
 type hungTaskTracing struct {
 	data            []*metric.Data
-	bo              *backoff.Backoff
+	backoff         *backoff.Backoff
 	nextAllowedTime time.Time
 }
 
@@ -65,12 +65,13 @@ func init() {
 func newHungTask() (*tracing.EventTracingAttr, error) {
 	bo := backoff.NewWithoutJitter(3*time.Hour, 10*time.Minute)
 	bo.SetDecay(1 * time.Hour)
+
 	return &tracing.EventTracingAttr{
 		TracingData: &hungTaskTracing{
 			data: []*metric.Data{
 				metric.NewGaugeData("counter", 0, "hungtask counter", nil),
 			},
-			bo: bo,
+			backoff: bo,
 		},
 		Internal: 10,
 		Flag:     tracing.FlagMetric | tracing.FlagTracing,
@@ -119,7 +120,7 @@ func (c *hungTaskTracing) Start(ctx context.Context) error {
 				continue
 			}
 
-			c.nextAllowedTime = now.Add(c.bo.Duration())
+			c.nextAllowedTime = now.Add(c.backoff.Duration())
 
 			cpusBT, err := kmsgutil.GetAllCPUsBT()
 			if err != nil {
