@@ -53,9 +53,9 @@ type hungTaskTracing struct {
 }
 
 func init() {
-	// Some OS distributions such as Fedora-42 may disable this feature.
-	hungTaskSysctl := "/proc/sys/kernel/hung_task_timeout_secs"
-	if _, err := os.Stat(hungTaskSysctl); err != nil {
+	// OS such as Fedora-42 may disable this feature.
+	sysctl := "/proc/sys/kernel/hung_task_timeout_secs"
+	if _, err := os.Stat(sysctl); err != nil {
 		return
 	}
 
