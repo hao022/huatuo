@@ -8,7 +8,7 @@ BPF_INCLUDE := "-I$(BPF_DIR)/include"
 
 APP_COMMIT ?= $(shell git describe --dirty --long --always)
 APP_BUILD_TIME=$(shell date "+%Y%m%d%H%M%S")
-APP_VERSION="1.0"
+APP_VERSION="2.1.0"
 
 GO_BUILD_STATIC := CGO_ENABLED=1 $(GO) build -tags "netgo osusergo" -gcflags=all="-N -l" \
 	-ldflags "-extldflags -static
