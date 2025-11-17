@@ -69,10 +69,9 @@
 
 
 # 联系我们
+- 微信群（备注姓名+单位）和公众号：
 
-@[hao022](https://github.com/hao022)  
-@[nashuiliang](https://github.com/nashuiliang)  
-@[fanzu8](https://github.com/fanzuba)  
+![](./docs/img/contact-weixin.png)
 
 
 # 点星历史

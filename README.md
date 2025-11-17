@@ -60,10 +60,9 @@ Supports kernel versions from 4.18 and later.
 For more information, visit [https://huatuo.tech](https://huatuo.tech/).
 
 # Contact Us
+- WeChat Group and Official Account:
 
-@[hao022](https://github.com/hao022)
-@[nashuiliang](https://github.com/nashuiliang)
-@[fanzu8](https://github.com/fanzuba)
+![](./docs/img/contact-weixin.png)
 
 # License
 
