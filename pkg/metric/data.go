@@ -60,8 +60,8 @@ var ErrNoData = errors.New("collector returned no data")
 
 // Data is a structure used to define metric data points.
 type Data struct {
-	metricName string
-	metricType int
+	name       string
+	valueType  int
 	Value      float64
 	help       string
 	labelKey   []string
@@ -75,10 +75,10 @@ func IsNoDataError(err error) bool {
 
 func newData(name string, value float64, typ int, help string, label map[string]string) *Data {
 	data := &Data{
-		metricName: name,
-		metricType: typ,
-		Value:      value,
-		help:       help,
+		name:      name,
+		valueType: typ,
+		Value:     value,
+		help:      help,
 	}
 
 	data.labelKey = append(data.labelKey, LabelRegion, LabelHost)
@@ -138,10 +138,10 @@ func NewCounterData(name string, value float64, help string, label map[string]st
 
 func newContainerData(container *pod.Container, name string, value float64, typ int, help string, label map[string]string) *Data {
 	data := &Data{
-		metricName: fmt.Sprintf("container_%s", name),
-		metricType: typ,
-		Value:      value,
-		help:       help,
+		name:      fmt.Sprintf("container_%s", name),
+		valueType: typ,
+		Value:     value,
+		help:      help,
 	}
 
 	// default label
@@ -197,7 +197,7 @@ func NewContainerCounterData(container *pod.Container, name string, value float6
 // convert 'Data' to prometheus Metric
 func (d *Data) prometheusMetric(collector string) prometheus.Metric {
 	var valueType prometheus.ValueType
-	switch d.metricType {
+	switch d.valueType {
 	case MetricTypeGauge:
 		valueType = prometheus.GaugeValue
 	case MetricTypeCounter:
@@ -206,7 +206,7 @@ func (d *Data) prometheusMetric(collector string) prometheus.Metric {
 		return nil
 	}
 
-	metricName := prometheus.BuildFQName(promNamespace, collector, d.metricName)
+	metricName := prometheus.BuildFQName(promNamespace, collector, d.name)
 	desc, ok := metricDescCache.Load(metricName)
 	if !ok {
 		desc = prometheus.NewDesc(metricName, d.help, d.labelKey, nil)
