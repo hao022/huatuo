@@ -63,7 +63,7 @@ func newSoftLockup() (*tracing.EventTracingAttr, error) {
 	return &tracing.EventTracingAttr{
 		TracingData: &softLockupTracing{
 			data: []*metric.Data{
-				metric.NewGaugeData("counter", 0, "softlockup counter", nil),
+				metric.NewCounterData("counter", 0, "softlockup counter", nil),
 			},
 			backoff: bo,
 		},

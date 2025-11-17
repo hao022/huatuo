@@ -159,7 +159,7 @@ func (netdev *netdevTracing) Update() ([]*metric.Data, error) {
 
 	for typ, value := range netdev.linkStatusEventCounts {
 		for ifname, count := range value {
-			metrics = append(metrics, metric.NewGaugeData(
+			metrics = append(metrics, metric.NewCounterData(
 				typ.String(), float64(count), typ.String(),
 				map[string]string{
 					"device":           ifname,

@@ -143,13 +143,13 @@ func (dcb *dcbCollector) Update() ([]*metric.Data, error) {
 			}
 
 			for i, cnt := range pfc.Requests {
-				data = append(data, metric.NewGaugeData("pfc_send_total", float64(cnt),
+				data = append(data, metric.NewCounterData("pfc_send_total", float64(cnt),
 					"count of the sent pfc frames",
 					map[string]string{"device": ifname, "prio": strconv.Itoa(i)}))
 			}
 
 			for i, cnt := range pfc.Indications {
-				data = append(data, metric.NewGaugeData("pfc_received_total", float64(cnt),
+				data = append(data, metric.NewCounterData("pfc_received_total", float64(cnt),
 					"count of the received pfc frames",
 					map[string]string{"device": ifname, "prio": strconv.Itoa(i)}))
 			}

@@ -82,10 +82,10 @@ func (c *netdevCollector) Update() ([]*metric.Data, error) {
 				tags := map[string]string{"device": dev}
 				if container != nil {
 					metrics = append(metrics,
-						metric.NewContainerGaugeData(container, key+"_total", float64(val), fmt.Sprintf("Network device statistic %s.", key), tags))
+						metric.NewContainerCounterData(container, key+"_total", float64(val), fmt.Sprintf("Network device statistic %s.", key), tags))
 				} else {
 					metrics = append(metrics,
-						metric.NewGaugeData(key+"_total", float64(val), fmt.Sprintf("Network device statistic %s.", key), tags))
+						metric.NewCounterData(key+"_total", float64(val), fmt.Sprintf("Network device statistic %s.", key), tags))
 				}
 			}
 		}

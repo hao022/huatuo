@@ -86,11 +86,11 @@ func (c *oomCollector) Update() ([]*metric.Data, error) {
 	}
 	metrics := []*metric.Data{}
 	mutex.Lock()
-	metrics = append(metrics, metric.NewGaugeData("host_counter", hostOOMCounter, "host oom counter", nil))
+	metrics = append(metrics, metric.NewCounterData("host_counter", hostOOMCounter, "host oom counter", nil))
 	for _, container := range containers {
 		if val, exists := containerOOMCounter[container.ID]; exists {
 			metrics = append(metrics,
-				metric.NewContainerGaugeData(container, "counter", float64(val.count), "containers oom counter", map[string]string{"process": val.victimProcessName}),
+				metric.NewContainerCounterData(container, "counter", float64(val.count), "containers oom counter", map[string]string{"process": val.victimProcessName}),
 			)
 		}
 	}

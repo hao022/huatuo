@@ -524,7 +524,7 @@ func (ras *rasTracing) Update() ([]*metric.Data, error) {
 	}
 
 	return []*metric.Data{
-		metric.NewGaugeData("hw_counter", float64(atomic.LoadUint64(&ras.count)),
+		metric.NewCounterData("hw_counter", float64(atomic.LoadUint64(&ras.count)),
 			"ras counter", nil),
 	}, nil
 }

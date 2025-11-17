@@ -103,7 +103,7 @@ func (lacp *lacpTracing) Start(ctx context.Context) (err error) {
 
 func (lacp *lacpTracing) Update() ([]*metric.Data, error) {
 	return []*metric.Data{
-		metric.NewGaugeData("lacp", float64(atomic.LoadUint64(&lacp.count)),
+		metric.NewCounterData("lacp", float64(atomic.LoadUint64(&lacp.count)),
 			"lacp disabled count", nil),
 	}, nil
 }

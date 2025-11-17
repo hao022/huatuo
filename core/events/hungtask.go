@@ -69,7 +69,7 @@ func newHungTask() (*tracing.EventTracingAttr, error) {
 	return &tracing.EventTracingAttr{
 		TracingData: &hungTaskTracing{
 			data: []*metric.Data{
-				metric.NewGaugeData("counter", 0, "hungtask counter", nil),
+				metric.NewCounterData("counter", 0, "hungtask counter", nil),
 			},
 			backoff: bo,
 		},
