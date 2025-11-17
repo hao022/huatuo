@@ -38,10 +38,10 @@ import (
 	mapset "github.com/deckarep/golang-set"
 )
 
-// XXX go:generate go run -mod=mod github.com/cilium/ebpf/cmd/bpf2go -target amd64 cgroupCssGather $BPF_DIR/cgroup_css_gather.c -- $BPF_INCLUDE
+// XXX go:generate go run -mod=mod github.com/cilium/ebpf/cmd/bpf2go -target amd64 cgroupCssGather $BPF_DIR/cgroup_css_sync.c -- $BPF_INCLUDE
 // use the huatuo bpf framework:
 //
-//go:generate $BPF_COMPILE $BPF_INCLUDE -s $BPF_DIR/cgroup_css_gather.c -o $BPF_DIR/cgroup_css_gather.o
+//go:generate $BPF_COMPILE $BPF_INCLUDE -s $BPF_DIR/cgroup_css_sync.c -o $BPF_DIR/cgroup_css_sync.o
 //go:generate $BPF_COMPILE $BPF_INCLUDE -s $BPF_DIR/cgroup_css_events.c -o $BPF_DIR/cgroup_css_events.o
 
 func parseContainerCSS(containerID string) (map[string]uint64, error) {
@@ -278,8 +278,8 @@ func cgroupCssInitEventSync() error {
 	return nil
 }
 
-func cgroupCssExistedGather() error {
-	cssBpf, err := bpf.LoadBpf("cgroup_css_gather.o", nil)
+func cgroupCssExistedSync() error {
+	cssBpf, err := bpf.LoadBpf("cgroup_css_sync.o", nil)
 	if err != nil {
 		return fmt.Errorf("LoadBpf: %w", err)
 	}
@@ -322,7 +322,7 @@ func containerCgroupCssInit() error {
 		return err
 	}
 
-	if err := cgroupCssExistedGather(); err != nil {
+	if err := cgroupCssExistedSync(); err != nil {
 		return err
 	}
 	if err := cgroupCssInitEventSync(); err != nil {
