@@ -80,8 +80,8 @@ func newNetdevHw() (*tracing.EventTracingAttr, error) {
 
 		ifaceIndex[iface] = len(ifaceRxDropped)
 
-		ifaceRxDropped = append(ifaceRxDropped, metric.NewGaugeData(
-			"rx_dropped", 0, "count of packets dropped at hardware level",
+		ifaceRxDropped = append(ifaceRxDropped, metric.NewCounterData(
+			"rx_dropped_total", 0, "count of packets dropped at hardware level",
 			map[string]string{
 				"device": iface,
 				"driver": drvInfo.Driver,

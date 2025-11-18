@@ -5305,7 +5305,7 @@
                 "uid": "huatuo-bamai-prom"
               },
               "exemplar": true,
-              "expr": "rate(huatuo_bamai_netdev_hw_rx_dropped{host=~\"$host\",region=\"$region\"}[30s])",
+              "expr": "rate(huatuo_bamai_netdev_hw_rx_dropped_total{host=~\"$host\",region=\"$region\"}[30s])",
               "format": "time_series",
               "hide": false,
               "instant": false,
