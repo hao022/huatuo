@@ -94,9 +94,9 @@ func mainAction(ctx *cli.Context) error {
 	}
 
 	podListInitCtx := pod.PodContainerInitCtx{
-		PodListReadOnlyPort:   conf.Get().Pod.KubeletPodListURL,
-		PodListAuthorizedPort: conf.Get().Pod.KubeletPodListHTTPSURL,
-		PodClientCertPath:     conf.Get().Pod.KubeletPodClientCertPath,
+		PodReadOnlyPort:   conf.Get().Pod.KubeletReadOnlyPort,
+		PodAuthorizedPort: conf.Get().Pod.KubeletAuthorizedPort,
+		PodClientCertPath: conf.Get().Pod.KubeletClientCertPath,
 	}
 
 	if err := pod.ContainerPodMgrInit(&podListInitCtx); err != nil {

@@ -50,11 +50,21 @@ var (
 )
 
 type PodContainerInitCtx struct {
-	PodListReadOnlyPort   string
-	PodListAuthorizedPort string
-	PodClientCertPath     string
-	podClientCertPath     string
-	podClientCertKey      string
+	PodReadOnlyPort   uint32
+	PodAuthorizedPort uint32
+	PodClientCertPath string
+
+	// this is used internally.
+	podClientCertPath string
+	podClientCertKey  string
+}
+
+func kubeletPodListReadOnlyURL(port uint32) string {
+	return fmt.Sprintf("http://127.0.0.1:%d/pods", port)
+}
+
+func kubeletPodListAuthorizedURL(port uint32) string {
+	return fmt.Sprintf("https://127.0.0.1:%d/pods", port)
 }
 
 func kubeletHttpRequest(ctx *PodContainerInitCtx) (*http.Client, error) {
@@ -62,7 +72,7 @@ func kubeletHttpRequest(ctx *PodContainerInitCtx) (*http.Client, error) {
 		Timeout: kubeletReqTimeout,
 	}
 
-	_, err := kubeletDoRequest(client, ctx.PodListReadOnlyPort)
+	_, err := kubeletDoRequest(client, kubeletPodListReadOnlyURL(ctx.PodReadOnlyPort))
 	return client, err
 }
 
@@ -83,18 +93,19 @@ func kubeletHttpAuthorizationRequest(ctx *PodContainerInitCtx) (*http.Client, er
 		},
 	}
 
-	_, err = kubeletDoRequest(client, ctx.PodListAuthorizedPort)
+	_, err = kubeletDoRequest(client, kubeletPodListAuthorizedURL(ctx.PodAuthorizedPort))
 	return client, err
 }
 
-func kubeletPodListPortUpdate(ctx *PodContainerInitCtx) error {
+func kubeletPodListPortCacheUpdate(ctx *PodContainerInitCtx) error {
 	if client, err := kubeletHttpRequest(ctx); err == nil {
-		kubeletPodListURL = ctx.PodListReadOnlyPort
+		kubeletPodListURL = kubeletPodListReadOnlyURL(ctx.PodReadOnlyPort)
 		kubeletPodListClient = client
 		kubeletPodListRunningEnabled = true
 		return nil
 	}
 
+	// try to fallback https.
 	client, err := kubeletHttpAuthorizationRequest(ctx)
 	if err != nil {
 		return fmt.Errorf("podlist https: %w", err)
@@ -102,14 +113,21 @@ func kubeletPodListPortUpdate(ctx *PodContainerInitCtx) error {
 
 	// update https instance cache
 	kubeletPodListClient = client
-	kubeletPodListURL = ctx.PodListAuthorizedPort
+	kubeletPodListURL = kubeletPodListAuthorizedURL(ctx.PodAuthorizedPort)
 	kubeletPodListRunningEnabled = true
 	return nil
 }
 
 func ContainerPodMgrInit(ctx *PodContainerInitCtx) error {
-	if ctx.PodListReadOnlyPort == "" && ctx.PodListAuthorizedPort == "" {
+	if ctx.PodReadOnlyPort == 0 && ctx.PodAuthorizedPort == 0 {
 		log.Warnf("pod sync is not working, we manually turned off this.")
+		return nil
+	}
+
+	// if user enable the only authorized port, the cert path must be not
+	// empty.
+	if ctx.PodReadOnlyPort == 0 && ctx.PodAuthorizedPort != 0 && ctx.PodClientCertPath == "" {
+		log.Errorf("when you enable only the authorized port, you should populate cert path.")
 		return nil
 	}
 
@@ -122,7 +140,7 @@ func ContainerPodMgrInit(ctx *PodContainerInitCtx) error {
 
 	_ = kubeletCgroupDriverUpdate()
 
-	err := kubeletPodListPortUpdate(ctx)
+	err := kubeletPodListPortCacheUpdate(ctx)
 	if !errors.Is(err, syscall.ECONNREFUSED) {
 		// success or other error codes except connect refused
 		// only init css metadata collect when kubelet available.
@@ -143,7 +161,7 @@ func ContainerPodMgrInit(ctx *PodContainerInitCtx) error {
 		for {
 			select {
 			case <-t.C:
-				if err := kubeletPodListPortUpdate(ctx); err == nil {
+				if err := kubeletPodListPortCacheUpdate(ctx); err == nil {
 					log.Infof("kubelet is running now")
 					_ = kubeletCgroupDriverUpdate()
 					_ = containerCgroupCssInit()
