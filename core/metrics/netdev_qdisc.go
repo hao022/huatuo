@@ -42,7 +42,7 @@ const tcHMajMask = 0xFFFF0000
 type qdiscCollector struct{}
 
 func init() {
-	tracing.RegisterEventTracing("qdisc", newQdiscCollector)
+	tracing.RegisterEventTracing("netdev_qdisc", newQdiscCollector)
 }
 
 func newQdiscCollector() (*tracing.EventTracingAttr, error) {
