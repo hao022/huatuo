@@ -63,8 +63,8 @@ func newQdiscCollector() (*tracing.EventTracingAttr, error) {
 // 2: qidsc <kind> handle1 parent1
 // 3: qidsc <kind> handle2 parent1
 func (c *qdiscCollector) Update() ([]*metric.Data, error) {
-	filter := newFieldFilter(conf.Get().MetricCollector.Qdisc.IgnoredDevices,
-		conf.Get().MetricCollector.Qdisc.AcceptDevices)
+	filter := newFieldFilter(conf.Get().MetricCollector.Qdisc.DeviceExcluded,
+		conf.Get().MetricCollector.Qdisc.DeviceIncluded)
 
 	allQdisc, err := qdisc.Get()
 	if err != nil {

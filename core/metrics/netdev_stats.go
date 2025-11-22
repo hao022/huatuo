@@ -52,8 +52,8 @@ func newNetdevCollector() (*tracing.EventTracingAttr, error) {
 }
 
 func (c *netdevCollector) Update() ([]*metric.Data, error) {
-	filter := newFieldFilter(conf.Get().MetricCollector.Netdev.IgnoredDevices,
-		conf.Get().MetricCollector.Netdev.AcceptDevices)
+	filter := newFieldFilter(conf.Get().MetricCollector.Netdev.DeviceExcluded,
+		conf.Get().MetricCollector.Netdev.DeviceIncluded)
 
 	log.Debugf("Updating netdev metrics by filter: %v", filter)
 

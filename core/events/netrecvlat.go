@@ -108,9 +108,9 @@ func newNetRcvLat() (*tracing.EventTracingAttr, error) {
 }
 
 func (c *netRecvLatTracing) Start(ctx context.Context) error {
-	toNetIf := conf.Get().Tracing.NetRecvLat.ToNetIf       // ms, before RPS to a core recv(__netif_receive_skb)
-	toTCPV4 := conf.Get().Tracing.NetRecvLat.ToTCPV4       // ms, before RPS to TCP recv(tcp_v4_rcv)
-	toUserCopy := conf.Get().Tracing.NetRecvLat.ToUserCopy // ms, before RPS to user recv(skb_copy_datagram_iovec)
+	toNetIf := conf.Get().EventTracing.NetRecvLat.Driver2NetRx        // ms, before RPS to a core recv(__netif_receive_skb)
+	toTCPV4 := conf.Get().EventTracing.NetRecvLat.Driver2TCP          // ms, before RPS to TCP recv(tcp_v4_rcv)
+	toUserCopy := conf.Get().EventTracing.NetRecvLat.Driver2Userspace // ms, before RPS to user recv(skb_copy_datagram_iovec)
 
 	if toNetIf == 0 || toTCPV4 == 0 || toUserCopy == 0 {
 		return fmt.Errorf("netrecvlat threshold [%v %v %v]ms invalid", toNetIf, toTCPV4, toUserCopy)
@@ -239,7 +239,7 @@ func ignore(pid uint64, comm string, hostNetnsInode uint64) (containerID string,
 		}
 		return "", skip, fmt.Errorf("get netns inode of pid %v failed: %w", pid, err)
 	}
-	if conf.Get().Tracing.NetRecvLat.IgnoreHost && dstInode == hostNetnsInode {
+	if conf.Get().EventTracing.NetRecvLat.ExcludedHostNetnamespace && dstInode == hostNetnsInode {
 		log.Debugf("ignore %s:%v the same netns as host", comm, pid)
 		return "", true, nil
 	}
@@ -250,7 +250,7 @@ func ignore(pid uint64, comm string, hostNetnsInode uint64) (containerID string,
 		log.Warnf("get container info by netns inode %v pid %v, failed: %v", dstInode, pid, err)
 	}
 	if container != nil {
-		for _, level := range conf.Get().Tracing.NetRecvLat.IgnoreContainerLevel {
+		for _, level := range conf.Get().EventTracing.NetRecvLat.ExcludedContainerQos {
 			if container.Qos.Int() == level {
 				log.Debugf("ignore container %+v", container)
 				skip = true

@@ -43,8 +43,8 @@ func newMemEvents() (*tracing.EventTracingAttr, error) {
 }
 
 func (c *memEventsCollector) Update() ([]*metric.Data, error) {
-	filter := newFieldFilter(conf.Get().MetricCollector.MemoryEvents.ExcludedMetrics,
-		conf.Get().MetricCollector.MemoryEvents.IncludedMetrics)
+	filter := newFieldFilter(conf.Get().MetricCollector.MemoryEvents.Excluded,
+		conf.Get().MetricCollector.MemoryEvents.Included)
 
 	containers, err := pod.GetNormalContainers()
 	if err != nil {

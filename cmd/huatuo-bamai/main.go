@@ -103,7 +103,7 @@ func mainAction(ctx *cli.Context) error {
 		return fmt.Errorf("init podlist and sync module: %w", err)
 	}
 
-	blacklisted := conf.Get().Blacklist
+	blacklisted := conf.Get().BlackList
 	prom, err := InitMetricsCollector(blacklisted, conf.Region)
 	if err != nil {
 		return fmt.Errorf("InitMetricsCollector: %w", err)
@@ -258,12 +258,12 @@ func main() {
 		conf.Region = ctx.String("region")
 
 		// log level
-		if conf.Get().LogLevel != "" {
-			log.SetLevel(conf.Get().LogLevel)
+		if conf.Get().Log.Level != "" {
+			log.SetLevel(conf.Get().Log.Level)
 			log.Infof("log level [%s] configured in file, use it", log.GetLevel())
 		}
 
-		logFile := conf.Get().LogFile
+		logFile := conf.Get().Log.File
 		if logFile != "" {
 			file, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o666)
 			if err == nil {
@@ -277,11 +277,11 @@ func main() {
 		// tracer
 		disabledTracing := ctx.StringSlice("disable-tracing")
 		if len(disabledTracing) > 0 {
-			definedTracers := conf.Get().Blacklist
+			definedTracers := conf.Get().BlackList
 			definedTracers = append(definedTracers, disabledTracing...)
 
 			conf.Set("Blacklist", definedTracers)
-			log.Infof("The tracer black list by cli: %v", conf.Get().Blacklist)
+			log.Infof("The tracer black list by cli: %v", conf.Get().BlackList)
 		}
 
 		if ctx.Bool("log-debug") {

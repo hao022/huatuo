@@ -341,8 +341,8 @@ type dloadTracing struct{}
 
 // Start detect work, monitor the load of containers
 func (c *dloadTracing) Start(ctx context.Context) error {
-	thresh := conf.Get().Tracing.Dload.ThresholdLoad
-	interval := conf.Get().Tracing.Dload.MonitorGap
+	thresh := conf.Get().AutoTracing.Dload.ThresholdLoad
+	interval := conf.Get().AutoTracing.Dload.MonitorGap
 
 	for {
 		select {

@@ -121,7 +121,7 @@ func parseAttributes(attrs []syscall.NetlinkRouteAttr) (*ieeePfc, error) {
 func (dcb *dcbCollector) Update() ([]*metric.Data, error) {
 	data := []*metric.Data{}
 
-	for _, ifname := range conf.Get().Tracing.Netdev.Whitelist {
+	for _, ifname := range conf.Get().EventTracing.Netdev.DeviceIncluded {
 		msgs, err := doDcbRequest(ifname)
 		if err != nil {
 			if errors.Is(err, unix.ENOTSUP) || errors.Is(err, unix.ENODEV) {
