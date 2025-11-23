@@ -147,10 +147,16 @@ type CommonConf struct {
 	}
 
 	MetricCollector struct {
-		Netdev struct {
+		NetdevStats struct {
 			EnableNetlink  bool `default:"false"`
 			DeviceExcluded string
 			DeviceIncluded string
+		}
+		NetdevDCB struct {
+			DeviceList []string
+		}
+		NetdevHW struct {
+			DeviceList []string
 		}
 		Qdisc struct {
 			DeviceExcluded string

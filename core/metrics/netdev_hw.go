@@ -72,7 +72,7 @@ func newNetdevHw() (*tracing.EventTracingAttr, error) {
 			continue
 		}
 		// skip processing if the interface is not in the whitelist or the driver is not allowed
-		if !slices.Contains(conf.Get().EventTracing.Netdev.DeviceIncluded, iface) ||
+		if !slices.Contains(conf.Get().MetricCollector.NetdevHW.DeviceList, iface) ||
 			!slices.Contains(netDeviceDriver, drvInfo.Driver) {
 			log.Debugf("%s is skipped (not in whitelist or driver not allowed)", iface)
 			continue

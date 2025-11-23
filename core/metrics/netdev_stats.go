@@ -52,8 +52,8 @@ func newNetdevCollector() (*tracing.EventTracingAttr, error) {
 }
 
 func (c *netdevCollector) Update() ([]*metric.Data, error) {
-	filter := newFieldFilter(conf.Get().MetricCollector.Netdev.DeviceExcluded,
-		conf.Get().MetricCollector.Netdev.DeviceIncluded)
+	filter := newFieldFilter(conf.Get().MetricCollector.NetdevStats.DeviceExcluded,
+		conf.Get().MetricCollector.NetdevStats.DeviceIncluded)
 
 	log.Debugf("Updating netdev metrics by filter: %v", filter)
 
@@ -96,7 +96,7 @@ func (c *netdevCollector) Update() ([]*metric.Data, error) {
 }
 
 func (c *netdevCollector) getStats(container *pod.Container, filter *fieldFilter) (netdevStats, error) {
-	if conf.Get().MetricCollector.Netdev.EnableNetlink {
+	if conf.Get().MetricCollector.NetdevStats.EnableNetlink {
 		return c.netlinkStats(container, filter)
 	}
 	return c.procStats(container, filter)
