@@ -31,7 +31,7 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
-//go:generate $BPF_COMPILE $BPF_INCLUDE -s $BPF_DIR/lacp.c -o $BPF_DIR/lacp.o
+//go:generate $BPF_COMPILE $BPF_INCLUDE -s $BPF_DIR/netdev_bonding_lacp.c -o $BPF_DIR/netdev_bonding_lacp.o
 type lacpTracing struct {
 	count uint64
 }
@@ -43,7 +43,7 @@ func init() {
 		return
 	}
 
-	tracing.RegisterEventTracing("lacp", newLACPTracing)
+	tracing.RegisterEventTracing("netdev_bonding_lacp", newLACPTracing)
 }
 
 func newLACPTracing() (*tracing.EventTracingAttr, error) {

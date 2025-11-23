@@ -1764,7 +1764,7 @@
               "type": "count"
             }
           ],
-          "query": "region:$region AND hostname:$hostname AND ((tracer_name:netdev_events AND (tracer_data.linkstatus:*linkstatus_admindown* OR tracer_data.linkstatus:*linkstatus_carrierdown*)) OR tracer_name:lacp)",
+          "query": "region:$region AND hostname:$hostname AND ((tracer_name:netdev_events AND (tracer_data.linkstatus:*linkstatus_admindown* OR tracer_data.linkstatus:*linkstatus_carrierdown*)) OR tracer_name:netdev_bonding_lacp)",
           "refId": "A",
           "timeField": "uploaded_time"
         }
@@ -10284,12 +10284,12 @@
                   "type": "count"
                 }
               ],
-              "query": "tracer_name:lacp AND region:$region AND hostname:$hostname",
+              "query": "tracer_name:netdev_bonding_lacp AND region:$region AND hostname:$hostname",
               "refId": "A",
               "timeField": "uploaded_time"
             }
           ],
-          "title": "lacp",
+          "title": "netdev_bonding_lacp",
           "type": "stat"
         },
         {
@@ -10395,7 +10395,7 @@
                   "type": "count"
                 }
               ],
-              "query": "tracer_name:lacp AND region:$region AND hostname:$hostname",
+              "query": "tracer_name:netdev_bonding_lacp AND region:$region AND hostname:$hostname",
               "refId": "A",
               "timeField": "uploaded_time"
             }
@@ -10474,7 +10474,7 @@
                   "type": "raw_data"
                 }
               ],
-              "query": "tracer_name:lacp AND region:$region AND hostname:$hostname&size=100",
+              "query": "tracer_name:netdev_bonding_lacp AND region:$region AND hostname:$hostname&size=100",
               "refId": "A",
               "timeField": "uploaded_time"
             }
