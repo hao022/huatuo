@@ -134,7 +134,7 @@ type CommonConf struct {
 			Driver2TCP               uint64 `default:"10"`
 			Driver2Userspace         uint64 `default:"115"`
 			ExcludedHostNetnamespace bool   `default:"true"`
-			ExcludedContainerQos     []int
+			ExcludedContainerQos     []string
 		}
 
 		Dropwatch struct {

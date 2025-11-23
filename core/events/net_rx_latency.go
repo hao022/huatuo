@@ -251,7 +251,7 @@ func ignore(pid uint64, comm string, hostNetnsInode uint64) (containerID string,
 	}
 	if container != nil {
 		for _, level := range conf.Get().EventTracing.NetRxLatency.ExcludedContainerQos {
-			if container.Qos.Int() == level {
+			if strings.EqualFold(container.Qos.String(), level) {
 				log.Debugf("ignore container %+v", container)
 				skip = true
 				break
