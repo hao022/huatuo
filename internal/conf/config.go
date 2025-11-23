@@ -142,7 +142,7 @@ type CommonConf struct {
 		}
 
 		Netdev struct {
-			DeviceIncluded []string
+			DeviceList []string
 		}
 	}
 

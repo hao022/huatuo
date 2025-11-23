@@ -187,7 +187,7 @@ func (netdev *netdevTracing) checkAndInitLinkStatus() error {
 
 	for _, link := range links {
 		ifname := link.Attrs().Name
-		if !slices.Contains(conf.Get().EventTracing.Netdev.DeviceIncluded,
+		if !slices.Contains(conf.Get().EventTracing.Netdev.DeviceList,
 			ifname) {
 			continue
 		}
