@@ -58,7 +58,7 @@ func (c *netdevCollector) Update() ([]*metric.Data, error) {
 	log.Debugf("Updating netdev metrics by filter: %v", filter)
 
 	// normal containers
-	containers, err := pod.GetNormalContainers()
+	containers, err := pod.NormalContainers()
 	if err != nil {
 		return nil, fmt.Errorf("GetNormalContainers: %w", err)
 	}

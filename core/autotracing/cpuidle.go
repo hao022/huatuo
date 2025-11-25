@@ -88,7 +88,7 @@ type containersCPUIdleMap map[string]*containerCPUInfo
 var containersCPUIdle = make(containersCPUIdleMap)
 
 func updateContainersCPUIdle() error {
-	containers, err := pod.GetNormalContainers()
+	containers, err := pod.NormalContainers()
 	if err != nil {
 		return err
 	}

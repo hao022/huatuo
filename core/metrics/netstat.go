@@ -49,7 +49,7 @@ func (c *netstatCollector) Update() ([]*metric.Data, error) {
 	filter := newFieldFilter(conf.Get().MetricCollector.Netstat.Excluded, conf.Get().MetricCollector.Netstat.Included)
 	log.Debugf("Updating netstat metrics by filter: %v", filter)
 
-	containers, err := pod.GetNormalContainers()
+	containers, err := pod.NormalContainers()
 	if err != nil {
 		return nil, err
 	}

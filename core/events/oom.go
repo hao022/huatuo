@@ -80,7 +80,7 @@ var (
 )
 
 func (c *oomCollector) Update() ([]*metric.Data, error) {
-	containers, err := pod.GetNormalContainers()
+	containers, err := pod.NormalContainers()
 	if err != nil {
 		return nil, fmt.Errorf("get normal container: %w", err)
 	}
@@ -128,21 +128,21 @@ func (c *oomCollector) Start(ctx context.Context) error {
 			if err := reader.ReadInto(&data); err != nil {
 				return fmt.Errorf("ReadFromPerfEvent fail: %w", err)
 			}
-			cts, err := pod.GetAllContainers()
+			cts, err := pod.Containers()
 			if err != nil {
 				log.Errorf("Can't get GetAllContainers, err: %v", err)
 				return err
 			}
-			cssToCtMap := pod.BuildCSSToContainerID(cts, "memory")
+			cssToCtMap := pod.BuildCssContainers(cts, "memory")
 			caseData := &OOMTracingData{
 				TriggerMemcgCSS:    fmt.Sprintf("0x%x", data.TriggerMemcgCSS),
 				TriggerPid:         data.TriggerPid,
 				TriggerProcessName: bytesutil.CString(data.TriggerProcessName[:]),
-				TriggerContainerID: cssToCtMap[data.TriggerMemcgCSS],
+				TriggerContainerID: cssToCtMap[data.TriggerMemcgCSS].ID,
 				VictimMemcgCSS:     fmt.Sprintf("0x%x", data.VictimMemcgCSS),
 				VictimPid:          data.VictimPid,
 				VictimProcessName:  bytesutil.CString(data.VictimProcessName[:]),
-				VictimContainerID:  cssToCtMap[data.VictimMemcgCSS],
+				VictimContainerID:  cssToCtMap[data.VictimMemcgCSS].ID,
 			}
 
 			triggerContainer := cts[caseData.TriggerContainerID]

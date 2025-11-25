@@ -66,8 +66,8 @@ func (c *Container) LabelHostNamespace() string {
 	return c.Labels[labelHostNamespace].(string)
 }
 
-// getContainers returns the containers by type and level.
-func getContainers(typeMask ContainerType, minLevel ContainerQos) (map[string]*Container, error) {
+// containersByTypeQos returns the containers by type and level.
+func containersByTypeQos(typeMask ContainerType, minLevel ContainerQos) (map[string]*Container, error) {
 	updatedLock.Lock()
 	defer updatedLock.Unlock()
 
@@ -102,29 +102,14 @@ func getContainers(typeMask ContainerType, minLevel ContainerQos) (map[string]*C
 	return res, nil
 }
 
-// GetContainersByType returns the containers by type.
-func GetContainersByType(typeMask ContainerType) (map[string]*Container, error) {
-	return getContainers(typeMask, ContainerQosLevelMin)
+// ContainersByType returns the containers by type.
+func ContainersByType(typeMask ContainerType) (map[string]*Container, error) {
+	return containersByTypeQos(typeMask, ContainerQosLevelMin)
 }
 
-// GetNormalContainers returns the normal containers.
-func GetNormalContainers() (map[string]*Container, error) {
-	return GetContainersByType(ContainerTypeNormal)
-}
-
-// GetNormalAndSidecarContainers returns the normal and sidecar containers.
-func GetNormalAndSidecarContainers() (map[string]*Container, error) {
-	return GetContainersByType(ContainerTypeNormal | ContainerTypeSidecar)
-}
-
-// GetAllContainers returns all containers.
-func GetAllContainers() (map[string]*Container, error) {
-	return getContainers(ContainerTypeAll, ContainerQosLevelMin)
-}
-
-// GetContainerByID returns the special container by id.
-func GetContainerByID(id string) (*Container, error) {
-	all, err := GetAllContainers()
+// ContainerByID returns the special container by id.
+func ContainerByID(id string) (*Container, error) {
+	all, err := Containers()
 	if err != nil {
 		return nil, err
 	}
@@ -135,27 +120,25 @@ func GetContainerByID(id string) (*Container, error) {
 	return nil, nil
 }
 
-// GetContainerByIPAddress returns the special container by the container ip address.
-func GetContainerByIPAddress(ip string) (*Container, error) {
-	// only for normal
-	all, err := GetNormalContainers()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, c := range all {
-		if c.IPAddress == ip {
-			return c, nil
-		}
-	}
-
-	return nil, nil
+// NormalContainers returns the normal containers.
+func NormalContainers() (map[string]*Container, error) {
+	return ContainersByType(ContainerTypeNormal)
 }
 
-// GetContainerByNetNamespaceInode returns the special container by the net namespace inode.
-func GetContainerByNetNamespaceInode(inode uint64) (*Container, error) {
+// NormalSidecarContainers returns the normal and sidecar containers.
+func NormalSidecarContainers() (map[string]*Container, error) {
+	return ContainersByType(ContainerTypeNormal | ContainerTypeSidecar)
+}
+
+// Containers returns all containers.
+func Containers() (map[string]*Container, error) {
+	return containersByTypeQos(ContainerTypeAll, ContainerQosLevelMin)
+}
+
+// ContainerByNetNamespaceInode returns the special container by the net namespace inode.
+func ContainerByNetNamespaceInode(inode uint64) (*Container, error) {
 	// only for normal
-	all, err := GetNormalContainers()
+	all, err := NormalContainers()
 	if err != nil {
 		return nil, err
 	}
@@ -169,19 +152,8 @@ func GetContainerByNetNamespaceInode(inode uint64) (*Container, error) {
 	return nil, nil
 }
 
-// BuildCSSToContainerID builds a css-address map from the provided containers.
-func BuildCSSToContainerID(containers map[string]*Container, subsys string) map[uint64]string {
-	cssToContainerMap := make(map[uint64]string, len(containers))
-	for _, container := range containers {
-		if addr, ok := container.CSS[subsys]; ok {
-			cssToContainerMap[addr] = container.ID
-		}
-	}
-	return cssToContainerMap
-}
-
-// BuildCSSToContainer builds a css-address map from the provided containers to container pointers.
-func BuildCSSToContainer(containers map[string]*Container, subsys string) map[uint64]*Container {
+// BuildCssContainers builds a css-address map from the provided containers to container pointers.
+func BuildCssContainers(containers map[string]*Container, subsys string) map[uint64]*Container {
 	cssToContainerMap := make(map[uint64]*Container, len(containers))
 	for _, container := range containers {
 		if addr, ok := container.CSS[subsys]; ok {

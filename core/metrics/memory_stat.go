@@ -52,7 +52,7 @@ func (c *memStatCollector) Update() ([]*metric.Data, error) {
 		conf.Get().MetricCollector.MemoryStat.Included)
 
 	metrics := []*metric.Data{}
-	containers, err := pod.GetNormalContainers()
+	containers, err := pod.NormalContainers()
 	if err != nil {
 		return nil, err
 	}

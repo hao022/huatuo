@@ -85,7 +85,7 @@ type containersDloadMap map[string]*containerDloadInfo
 var containersDloads = make(containersDloadMap)
 
 func updateContainersDload() error {
-	containers, err := pod.GetAllContainers()
+	containers, err := pod.Containers()
 	if err != nil {
 		return err
 	}

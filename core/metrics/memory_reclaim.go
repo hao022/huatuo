@@ -54,12 +54,12 @@ func (c *memoryCgroup) Update() ([]*metric.Data, error) {
 		return nil, nil
 	}
 
-	containers, err := pod.GetNormalContainers()
+	containers, err := pod.NormalContainers()
 	if err != nil {
 		return nil, fmt.Errorf("get container: %w", err)
 	}
 
-	containersMap := pod.BuildCSSToContainer(containers, "memory")
+	containersMap := pod.BuildCssContainers(containers, "memory")
 
 	items, err := c.bpf.DumpMapByName("mem_cgroup_map")
 	if err != nil {

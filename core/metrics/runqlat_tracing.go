@@ -68,11 +68,11 @@ func startRunqlatTracerWork(ctx context.Context) error {
 		default:
 			var css uint64
 
-			containers, err := pod.GetNormalContainers()
+			containers, err := pod.NormalContainers()
 			if err != nil {
 				return fmt.Errorf("get normal containers: %w", err)
 			}
-			cssToContainer := pod.BuildCSSToContainer(containers, "cpu")
+			cssToContainer := pod.BuildCssContainers(containers, "cpu")
 
 			items, err := b.DumpMapByName("cpu_tg_metric")
 			if err != nil {
@@ -113,7 +113,7 @@ func startRunqlatTracerWork(ctx context.Context) error {
 func (c *runqlatCollector) Start(ctx context.Context) error {
 	err := startRunqlatTracerWork(ctx)
 
-	containers, _ := pod.GetContainersByType(pod.ContainerTypeNormal)
+	containers, _ := pod.ContainersByType(pod.ContainerTypeNormal)
 	for _, container := range containers {
 		runqlatData := container.LifeResouces("runqlat").(*latencyBpfData)
 		*runqlatData = latencyBpfData{}
