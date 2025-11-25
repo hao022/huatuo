@@ -152,6 +152,17 @@ func ContainerByNetNamespaceInode(inode uint64) (*Container, error) {
 	return nil, nil
 }
 
+// BuildCssContainersID builds a css-address map from the provided containers.
+func BuildCssContainersID(containers map[string]*Container, subsys string) map[uint64]string {
+	cssToContainerMap := make(map[uint64]string, len(containers))
+	for _, container := range containers {
+		if addr, ok := container.CSS[subsys]; ok {
+			cssToContainerMap[addr] = container.ID
+		}
+	}
+	return cssToContainerMap
+}
+
 // BuildCssContainers builds a css-address map from the provided containers to container pointers.
 func BuildCssContainers(containers map[string]*Container, subsys string) map[uint64]*Container {
 	cssToContainerMap := make(map[uint64]*Container, len(containers))
