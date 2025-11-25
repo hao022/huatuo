@@ -38,7 +38,7 @@ func KVMSig() bool {
 	// function: KVM_CPUID_SIGNATURE (0x40000000)
 	_, ebx, ecx, edx := Cpuid(0x40000000, 0)
 
-	sig := bytesutil.CString(uint32ToBytes(ebx, ecx, edx))
+	sig := bytesutil.ToString(uint32ToBytes(ebx, ecx, edx))
 
 	return sig == "KVMKVMKVM"
 }

@@ -262,10 +262,10 @@ func parseIOData(pid uint32, fileTable *PriorityQueue) {
 			continue
 		}
 
-		dir3 := bytesutil.CString(data.Dentry3Name[:])
-		dir2 := bytesutil.CString(data.Dentry2Name[:])
-		dir1 := bytesutil.CString(data.Dentry1Name[:])
-		filename := bytesutil.CString(data.FileName[:])
+		dir3 := bytesutil.ToString(data.Dentry3Name[:])
+		dir2 := bytesutil.ToString(data.Dentry2Name[:])
+		dir1 := bytesutil.ToString(data.Dentry1Name[:])
+		filename := bytesutil.ToString(data.FileName[:])
 		filepath := strings.TrimLeft(fmt.Sprintf("%s/%s/%s/%s", dir3, dir2, dir1, filename), "/")
 
 		var q2c, d2c uint64
@@ -299,7 +299,7 @@ func parseIOData(pid uint32, fileTable *PriorityQueue) {
 		ProcessData.FileStat = append(ProcessData.FileStat, filesInfo)
 
 		if comm == "" {
-			comm = bytesutil.CString(data.Comm[:])
+			comm = bytesutil.ToString(data.Comm[:])
 		}
 	}
 
@@ -576,7 +576,7 @@ func mainAction(ctx *cli.Context) error {
 					}
 				}
 				var stackInfo IOStack
-				stackInfo.Comm = bytesutil.CString(event.Comm[:])
+				stackInfo.Comm = bytesutil.ToString(event.Comm[:])
 				stackInfo.ContainerHostname = containerHostname
 				stackInfo.Pid = event.Pid
 				stackInfo.Latency = event.Cost / 1000

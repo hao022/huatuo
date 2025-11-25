@@ -102,7 +102,7 @@ func (c *softirqTracing) Start(ctx context.Context) error {
 			if err := reader.ReadInto(&data); err != nil {
 				return fmt.Errorf("Read From Perf Event fail: %w", err)
 			}
-			comm := bytesutil.CString(data.Comm[:])
+			comm := bytesutil.ToString(data.Comm[:])
 			index := strings.Index(comm, "ksoftirqd")
 
 			if index == 0 {

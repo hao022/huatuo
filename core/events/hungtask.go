@@ -134,7 +134,7 @@ func (c *hungTaskTracing) Start(ctx context.Context) error {
 
 			storage.Save("hungtask", "", time.Now(), &HungTaskTracerData{
 				Pid:                   data.Pid,
-				Comm:                  bytesutil.CString(data.Comm[:]),
+				Comm:                  bytesutil.ToString(data.Comm[:]),
 				CPUsStack:             cpusBT,
 				BlockedProcessesStack: blockedProcessesBT,
 			})

@@ -85,8 +85,8 @@ func (c *txqueueTimeout) Start(ctx context.Context) error {
 
 			data := txqueueTracingData{
 				QueueIndex: event.QueueIndex,
-				Name:       bytesutil.CString(event.Name[:]),
-				Driver:     bytesutil.CString(event.Driver[:]),
+				Name:       bytesutil.ToString(event.Name[:]),
+				Driver:     bytesutil.ToString(event.Driver[:]),
 			}
 
 			storage.Save("netdev_txqueue_timeout", "", time.Now(), data)

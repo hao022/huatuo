@@ -153,7 +153,7 @@ func parsedata(b bpf.BPF) error {
 			}
 		}
 
-		sttitle := bytesutil.CString(kv.Key.Name[:])
+		sttitle := bytesutil.ToString(kv.Key.Name[:])
 		index, functionNames = findOrAdd(sttitle, functionNames)
 		sample.FunctionIds = append(sample.FunctionIds, int32(index))
 

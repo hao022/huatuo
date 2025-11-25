@@ -185,7 +185,7 @@ func (c *dropWatchTracing) formatEvent(event *perfEventT) *DropWatchTracingData 
 	// tracer data
 	data := &DropWatchTracingData{
 		Type:          typeMap[event.Type],
-		Comm:          bytesutil.CString(event.Comm[:]),
+		Comm:          bytesutil.ToString(event.Comm[:]),
 		Pid:           event.TgidPid >> 32,
 		Saddr:         saddr,
 		Daddr:         daddr,

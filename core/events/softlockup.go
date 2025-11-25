@@ -124,7 +124,7 @@ func (c *softLockupTracing) Start(ctx context.Context) error {
 			storage.Save("softlockup", "", time.Now(), &SoftLockupTracerData{
 				CPU:       data.CPU,
 				Pid:       data.Pid,
-				Comm:      bytesutil.CString(data.Comm[:]),
+				Comm:      bytesutil.ToString(data.Comm[:]),
 				CPUsStack: bt,
 			})
 		}
