@@ -59,12 +59,17 @@ const (
 	cgroupSubsysCount                 = 13
 	kubeletContainerIDKnodeNameMaxlen = 85
 	kubeletContainerIDKnodeNameMinlen = 64
+	SubSysCPU                         = "cpu"
+	SubSysCPUAcct                     = "cpuacct"
+	SubSysCPUSet                      = "cpuset"
+	SubSysMemory                      = "memory"
+	SubSysBlkIO                       = "blkio"
 )
 
 var (
 	// used to extract container id from cgroup name
 	kubeletContainerIDRegexp  = regexp.MustCompile(`(?:cri-containerd-)?([0-9a-f]{64})(?:\.scope)?`)
-	cgroupv1SubSysName        = []string{"cpu", "cpuacct", "cpuset", "memory", "blkio"}
+	cgroupv1SubSysName        = []string{SubSysCPU, SubSysCPUAcct, SubSysCPUSet, SubSysMemory, SubSysBlkIO}
 	cgroupv1NotifyFile        = "cgroup.clone_children"
 	cgroupv2NotifyFile        = "memory.current"
 	cgroupCssID2SubSysNameMap = map[int]string{}

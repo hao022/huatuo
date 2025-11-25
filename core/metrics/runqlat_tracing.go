@@ -72,7 +72,7 @@ func startRunqlatTracerWork(ctx context.Context) error {
 			if err != nil {
 				return fmt.Errorf("get normal containers: %w", err)
 			}
-			cssToContainer := pod.BuildCssContainers(containers, "cpu")
+			cssToContainer := pod.BuildCssContainers(containers, pod.SubSysCPU)
 
 			items, err := b.DumpMapByName("cpu_tg_metric")
 			if err != nil {

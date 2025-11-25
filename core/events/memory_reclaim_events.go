@@ -91,7 +91,7 @@ func (c *memoryReclaimTracing) Start(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		cssToContainer = pod.BuildCssContainers(containers, "cpu")
+		cssToContainer = pod.BuildCssContainers(containers, pod.SubSysCPU)
 		cacheTime = time.Now()
 		return nil
 	}

@@ -128,12 +128,12 @@ func (c *oomCollector) Start(ctx context.Context) error {
 			if err := reader.ReadInto(&data); err != nil {
 				return fmt.Errorf("ReadFromPerfEvent fail: %w", err)
 			}
-			cts, err := pod.Containers()
+			containers, err := pod.Containers()
 			if err != nil {
 				log.Errorf("Can't get GetAllContainers, err: %v", err)
 				return err
 			}
-			cssToCtMap := pod.BuildCssContainers(cts, "memory")
+			cssToCtMap := pod.BuildCssContainers(containers, pod.SubSysMemory)
 			caseData := &OOMTracingData{
 				TriggerMemcgCSS:    fmt.Sprintf("0x%x", data.TriggerMemcgCSS),
 				TriggerPid:         data.TriggerPid,
@@ -145,12 +145,12 @@ func (c *oomCollector) Start(ctx context.Context) error {
 				VictimContainerID:  cssToCtMap[data.VictimMemcgCSS].ID,
 			}
 
-			triggerContainer := cts[caseData.TriggerContainerID]
+			triggerContainer := containers[caseData.TriggerContainerID]
 			caseData.TriggerContainerID, caseData.TriggerContainerHostname = formatContainerMeta(
 				caseData.TriggerContainerID, triggerContainer,
 			)
 			mutex.Lock()
-			victimContainer := cts[caseData.VictimContainerID]
+			victimContainer := containers[caseData.VictimContainerID]
 			caseData.VictimContainerID, caseData.VictimContainerHostname = formatContainerMeta(
 				caseData.VictimContainerID, victimContainer,
 			)
