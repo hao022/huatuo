@@ -488,7 +488,7 @@ func loadConfig(ctx *cli.Context) error {
 	ioStat.config.topProcessCount = ctx.Int("top-process-count")
 	ioStat.config.topFilesPerProcess = ctx.Int("top-files-per-process")
 	ioStat.config.ioScheduleThreshold = uint64(ctx.Int("io-schedule-threshold"))
-	ioStat.config.periodSecond = uint64(ctx.Int("dur"))
+	ioStat.config.periodSecond = uint64(ctx.Int("duration"))
 	if ioStat.config.periodSecond <= 0 {
 		return fmt.Errorf("invalid period: %d", ioStat.config.periodSecond)
 	}
@@ -785,11 +785,6 @@ func main() {
 	app := cli.NewApp()
 	app.Action = mainAction
 	app.Flags = []cli.Flag{
-		&cli.IntFlag{
-			Name:  "dur",
-			Value: 8,
-			Usage: "Tool duration(s), default is 8s",
-		},
 		&cli.StringFlag{
 			Name:  "server-address",
 			Value: "127.0.0.1:19704",
@@ -826,6 +821,11 @@ func main() {
 			Name:  "io-schedule-threshold",
 			Value: 100,
 			Usage: "IO schedule threshold in milliseconds, default is 100ms",
+		},
+		&cli.IntFlag{
+			Name:  "duration",
+			Value: 8,
+			Usage: "Tool duration(s), default is 8s",
 		},
 	}
 	app.Before = func(ctx *cli.Context) error {
