@@ -81,17 +81,17 @@ type ProcessData struct {
 
 type ioTracing struct {
 	ioData           IOStatusData
-	config           ioStatConfig
+	config           ioConfig
 	cssToContainerID map[uint64]string
 	containers       map[string]*pod.Container
 }
 
-type ioStatConfig struct {
-	periodSecond        uint64
-	maxStackNumber      int
-	ioScheduleThreshold uint64 // ms
-	topProcessCount     int
-	topFilesPerProcess  int
+type ioConfig struct {
+	periodSecond       uint64
+	scheduleThreshold  uint64 // ms
+	maxFilesPerProcess uint64
+	maxProcess         uint64
+	maxStack           uint64
 }
 
 // LatencyInfo contains IO latency information.
@@ -245,7 +245,7 @@ func parseIOData(pid uint32, fileTable *PriorityQueue) {
 	var ProcessData ProcessData
 
 	tableLength := fileTable.Len()
-	for i := 0; i < tableLength; i++ {
+	for i := uint64(0); i < uint64(tableLength); i++ {
 		data := heap.Pop(fileTable).(*IODataStat).Data
 
 		wbps := data.FsWriteBytes / ioStat.config.periodSecond
@@ -258,7 +258,7 @@ func parseIOData(pid uint32, fileTable *PriorityQueue) {
 		dwrite += dwbps
 
 		ProcessData.FileCount++
-		if i > ioStat.config.topFilesPerProcess {
+		if i > ioStat.config.maxFilesPerProcess {
 			continue
 		}
 
@@ -484,11 +484,13 @@ func attachAndEventPipe(ctx context.Context, b bpf.BPF) (bpf.PerfEventReader, er
 
 // loadConfig loads configuration from command line arguments.
 func loadConfig(ctx *cli.Context) error {
-	ioStat.config.maxStackNumber = ctx.Int("max-stack-number")
-	ioStat.config.topProcessCount = ctx.Int("top-process-count")
-	ioStat.config.topFilesPerProcess = ctx.Int("top-files-per-process")
-	ioStat.config.ioScheduleThreshold = uint64(ctx.Int("io-schedule-threshold"))
-	ioStat.config.periodSecond = uint64(ctx.Int("duration"))
+	ioStat.config = ioConfig{
+		maxStack:           ctx.Uint64("max-stack"),
+		maxProcess:         ctx.Uint64("max-process"),
+		maxFilesPerProcess: ctx.Uint64("max-files-per-process"),
+		scheduleThreshold:  ctx.Uint64("schedule-threshold"),
+		periodSecond:       ctx.Uint64("duration"),
+	}
 	if ioStat.config.periodSecond <= 0 {
 		return fmt.Errorf("invalid period: %d", ioStat.config.periodSecond)
 	}
@@ -554,7 +556,7 @@ func mainAction(ctx *cli.Context) error {
 	getContainerInfo(ctx.String("server-address"))
 
 	var event IODelayData
-	var stackCollected int
+	stackCollected := uint64(0)
 	for {
 		if err := reader.ReadInto(&event); err != nil {
 			if errors.Is(err, types.ErrExitByCancelCtx) {
@@ -565,8 +567,8 @@ func mainAction(ctx *cli.Context) error {
 
 		// event.Cost(ns), ioStat.config.ioScheduleThreshold(ms)
 		// event.Cost/1000(us), 1000*ioStat.config.ioScheduleThreshold(us)
-		if event.Cost/1000 > 1000*ioStat.config.ioScheduleThreshold {
-			if stackCollected < ioStat.config.maxStackNumber {
+		if event.Cost/1000 > 1000*ioStat.config.scheduleThreshold {
+			if stackCollected < ioStat.config.maxStack {
 				var containerHostname string
 				if containerID, err := getContainerByPid(event.Pid); err == nil && containerID != "" {
 					if container, ok := ioStat.containers[containerID]; ok {
@@ -627,7 +629,7 @@ func mainAction(ctx *cli.Context) error {
 			parseIOData(kv.pid, fileTable)
 		}
 		// Gets the top processes with the highest number of io requests
-		if i > ioStat.config.topProcessCount {
+		if uint64(i) > ioStat.config.maxProcess {
 			break
 		}
 	}
@@ -799,33 +801,33 @@ func main() {
 			Usage: "Print in JSON format, if not set, print in text format",
 		},
 		&cli.IntFlag{
-			Name:  "max-stack-number",
+			Name:  "max-stack",
 			Value: 10,
-			Usage: "Maximum number of stack traces to display, default is 10",
+			Usage: "Maximum number of stack traces to display",
 		},
 		&cli.IntFlag{
-			Name:  "top-process-count",
+			Name:  "max-process",
 			Value: 10,
-			Usage: "Maximum number of top processes to display, default is 10",
+			Usage: "Maximum number of top processes to display",
 		},
 		&cli.IntFlag{
-			Name:  "top-files-per-process",
+			Name:  "max-files-per-process",
 			Value: 5,
-			Usage: "Maximum number of top files per process to display, default is 5",
+			Usage: "Maximum number of top files per process to display",
+		},
+		&cli.Uint64Flag{
+			Name:  "schedule-threshold",
+			Value: 100,
+			Usage: "IO schedule threshold in milliseconds",
 		},
 		&cli.IntFlag{
 			Name:  "period-second",
-			Usage: "Period in seconds for collecting IO data, default is 10s",
+			Usage: "Period in seconds for collecting IO data",
 		},
-		&cli.IntFlag{
-			Name:  "io-schedule-threshold",
-			Value: 100,
-			Usage: "IO schedule threshold in milliseconds, default is 100ms",
-		},
-		&cli.IntFlag{
+		&cli.Uint64Flag{
 			Name:  "duration",
 			Value: 8,
-			Usage: "Tool duration(s), default is 8s",
+			Usage: "Tool duration(s)",
 		},
 	}
 	app.Before = func(ctx *cli.Context) error {
