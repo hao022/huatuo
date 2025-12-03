@@ -141,44 +141,37 @@ type keyValue struct {
 	ioSize uint64
 }
 
-// parseDeviceNumbers parses device string in format "major:minor"
-// supports multiple devices separated by comma, e.g., "8:0,253:0"
+// parseDeviceNumbers
+//
+// parses device string in format "major:minor", e.g., "8:0,253:0"
 // returns device numbers array in the format used by kernel: (major & 0xfff) << 20 | minor
 func parseDeviceNumbers(deviceStr string) ([]uint32, error) {
-	if deviceStr == "" {
-		return nil, nil
-	}
-
-	// Split multiple devices by comma
-	deviceSpecs := strings.Split(deviceStr, ",")
 	var deviceNums []uint32
 
+	deviceSpecs := strings.Split(deviceStr, ",")
 	for _, spec := range deviceSpecs {
 		spec = strings.TrimSpace(spec)
 		if spec == "" {
 			continue
 		}
 
-		// Parse device number
-		var parts []string
-		if strings.Contains(spec, ":") {
-			parts = strings.Split(spec, ":")
-		} else {
-			return nil, fmt.Errorf("invalid device format: %s, expected major:minor or major,minor", spec)
+		if !strings.Contains(spec, ":") {
+			return nil, fmt.Errorf("invalid device format: %s", spec)
 		}
 
+		parts := strings.Split(spec, ":")
 		if len(parts) != 2 {
-			return nil, fmt.Errorf("invalid device format: %s, expected major:minor or major,minor", spec)
+			return nil, fmt.Errorf("invalid device format: %s", spec)
 		}
 
 		major, err := strconv.ParseUint(strings.TrimSpace(parts[0]), 10, 32)
 		if err != nil {
-			return nil, fmt.Errorf("invalid major number: %s", parts[0])
+			return nil, fmt.Errorf("invalid number: %s", parts[0])
 		}
 
 		minor, err := strconv.ParseUint(strings.TrimSpace(parts[1]), 10, 32)
 		if err != nil {
-			return nil, fmt.Errorf("invalid minor number: %s", parts[1])
+			return nil, fmt.Errorf("invalid number: %s", parts[1])
 		}
 
 		// Convert to kernel device number format
