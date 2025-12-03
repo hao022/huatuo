@@ -550,7 +550,7 @@ func mainAction(ctx *cli.Context) error {
 	defer reader.Close()
 
 	var event IODelayData
-	stackCollected := uint64(0)
+	stackDepth := uint64(0)
 	for {
 		if err := reader.ReadInto(&event); err != nil {
 			if errors.Is(err, types.ErrExitByCancelCtx) {
@@ -562,7 +562,7 @@ func mainAction(ctx *cli.Context) error {
 		// event.Cost(ns), ioStat.config.ioScheduleThreshold(ms)
 		// event.Cost/1000(us), 1000*ioStat.config.ioScheduleThreshold(us)
 		if event.Cost/1000 > 1000*tracingCmd.config.scheduleThreshold {
-			if stackCollected < tracingCmd.config.maxStack {
+			if stackDepth < tracingCmd.config.maxStack {
 				var containerHostname string
 				if containerID, err := getContainerByPid(event.Pid); err == nil && containerID != "" {
 					if container, ok := tracingCmd.containers[containerID]; ok {
@@ -571,14 +571,17 @@ func mainAction(ctx *cli.Context) error {
 						containerHostname = containerID // if can't get the container name, we can still show the container ID.
 					}
 				}
-				var stackInfo IOStack
-				stackInfo.Comm = bytesutil.ToString(event.Comm[:])
-				stackInfo.ContainerHostname = containerHostname
-				stackInfo.Pid = event.Pid
-				stackInfo.Latency = event.Cost / 1000
-				stackInfo.Stack = symbol.DumpKernelBackTrace(event.Stack[:], symbol.KsymbolStackMinDepth)
-				tracingCmd.ioData.IOStack = append(tracingCmd.ioData.IOStack, stackInfo)
-				stackCollected++
+
+				stack := IOStack{
+					Comm:              bytesutil.ToString(event.Comm[:]),
+					ContainerHostname: containerHostname,
+					Pid:               event.Pid,
+					Latency:           event.Cost / 1000,
+					Stack:             symbol.DumpKernelBackTrace(event.Stack[:], symbol.KsymbolStackMinDepth),
+				}
+
+				tracingCmd.ioData.IOStack = append(tracingCmd.ioData.IOStack, stack)
+				stackDepth++
 			}
 		}
 	}
