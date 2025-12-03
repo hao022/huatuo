@@ -49,7 +49,7 @@ import (
 
 //go:embed iotracing.o
 var iotracing []byte
-var ioStat ioTracing
+var tracingCmd ioTracing
 
 // IOStatusData contains IO status information.
 type IOStatusData struct {
@@ -84,6 +84,7 @@ type ioTracing struct {
 	config           ioConfig
 	cssToContainerID map[uint64]string
 	containers       map[string]*pod.Container
+	devices          map[string]any
 }
 
 type ioConfig struct {
@@ -248,17 +249,17 @@ func parseIOData(pid uint32, fileTable *PriorityQueue) {
 	for i := uint64(0); i < uint64(tableLength); i++ {
 		data := heap.Pop(fileTable).(*IODataStat).Data
 
-		wbps := data.FsWriteBytes / ioStat.config.periodSecond
-		rbps := data.FsReadBytes / ioStat.config.periodSecond
-		dwbps := data.BlockWriteBytes / ioStat.config.periodSecond
-		drbps := data.BlockReadBytes / ioStat.config.periodSecond
+		wbps := data.FsWriteBytes / tracingCmd.config.periodSecond
+		rbps := data.FsReadBytes / tracingCmd.config.periodSecond
+		dwbps := data.BlockWriteBytes / tracingCmd.config.periodSecond
+		drbps := data.BlockReadBytes / tracingCmd.config.periodSecond
 		read += rbps
 		write += wbps
 		dread += drbps
 		dwrite += dwbps
 
 		ProcessData.FileCount++
-		if i > ioStat.config.maxFilesPerProcess {
+		if i > tracingCmd.config.maxFilesPerProcess {
 			continue
 		}
 
@@ -288,8 +289,8 @@ func parseIOData(pid uint32, fileTable *PriorityQueue) {
 		// if data.Tgid == 0, it means we only catch the io from the block layer,so this is no filepath.
 		// so we need to show the container info
 		if data.Blkcg != 0 && data.Tgid == 0 {
-			if containerID, ok := ioStat.cssToContainerID[data.Blkcg]; ok {
-				if c, ok := ioStat.containers[containerID]; ok {
+			if containerID, ok := tracingCmd.cssToContainerID[data.Blkcg]; ok {
+				if c, ok := tracingCmd.containers[containerID]; ok {
 					filesInfo += fmt.Sprintf(", container=%s", c.Name)
 				} else {
 					filesInfo += fmt.Sprintf(", containerID=%s", containerID)
@@ -320,13 +321,13 @@ func parseIOData(pid uint32, fileTable *PriorityQueue) {
 
 	containerID, _ := getContainerByPid(pid)
 	if containerID != "" {
-		if c, ok := ioStat.containers[containerID]; ok {
+		if c, ok := tracingCmd.containers[containerID]; ok {
 			ProcessData.ContainerHostname = c.Hostname
 		} else {
 			ProcessData.ContainerHostname = containerID
 		}
 	}
-	ioStat.ioData.ProcessData = append(ioStat.ioData.ProcessData, ProcessData)
+	tracingCmd.ioData.ProcessData = append(tracingCmd.ioData.ProcessData, ProcessData)
 }
 
 // sortProcessIOSize sorts processes by their IO size in descending order.
@@ -353,9 +354,9 @@ func getContainerInfo(serverAddr string) {
 	}
 
 	for _, container := range containers {
-		ioStat.containers[container.ID] = container
+		tracingCmd.containers[container.ID] = container
 		if css, ok := container.CSS["blkio"]; ok {
-			ioStat.cssToContainerID[css] = container.ID
+			tracingCmd.cssToContainerID[css] = container.ID
 		}
 	}
 }
@@ -482,33 +483,25 @@ func attachAndEventPipe(ctx context.Context, b bpf.BPF) (bpf.PerfEventReader, er
 	return reader, nil
 }
 
-// loadConfig loads configuration from command line arguments.
-func loadConfig(ctx *cli.Context) error {
-	ioStat.config = ioConfig{
-		maxStack:           ctx.Uint64("max-stack"),
-		maxProcess:         ctx.Uint64("max-process"),
-		maxFilesPerProcess: ctx.Uint64("max-files-per-process"),
-		scheduleThreshold:  ctx.Uint64("schedule-threshold"),
-		periodSecond:       ctx.Uint64("duration"),
-	}
-	if ioStat.config.periodSecond <= 0 {
-		return fmt.Errorf("invalid period: %d", ioStat.config.periodSecond)
-	}
-
-	ioStat.ioData = IOStatusData{}
-	ioStat.cssToContainerID = make(map[uint64]string)
-	ioStat.containers = make(map[string]*pod.Container)
-	return nil
-}
-
-// mainAction is the main entry point for the iotracing command.
-func mainAction(ctx *cli.Context) error {
-	if err := loadConfig(ctx); err != nil {
-		return err
+// parseCmdConfig loads configuration from command line arguments.
+func parseCmdConfig(ctx *cli.Context) error {
+	tracingCmd = ioTracing{
+		config: ioConfig{
+			maxStack:           ctx.Uint64("max-stack"),
+			maxProcess:         ctx.Uint64("max-process"),
+			maxFilesPerProcess: ctx.Uint64("max-files-per-process"),
+			scheduleThreshold:  ctx.Uint64("schedule-threshold"),
+			periodSecond:       ctx.Uint64("duration"),
+		},
+		cssToContainerID: make(map[uint64]string),
+		containers:       make(map[string]*pod.Container),
 	}
 
-	// Parse device filter if provided
-	var consts map[string]any
+	if tracingCmd.config.periodSecond == 0 {
+		return fmt.Errorf("invalid period: %d", tracingCmd.config.periodSecond)
+	}
+
+	// if no devices, iotracing will trace all blkdev.
 	if deviceStr := ctx.String("device"); deviceStr != "" {
 		deviceNums, err := parseDeviceNumbers(deviceStr)
 		if err != nil {
@@ -519,29 +512,39 @@ func mainAction(ctx *cli.Context) error {
 		var deviceArray [16]uint32
 		copy(deviceArray[:], deviceNums)
 
-		consts = map[string]any{
+		tracingCmd.devices = map[string]any{
 			"FILTER_DEVS":      deviceArray,
 			"FILTER_DEV_COUNT": uint32(len(deviceNums)),
 		}
 	}
 
-	// init bpf
+	getContainerInfo(ctx.String("server-address"))
+
+	return nil
+}
+
+// mainAction is the main entry point for the iotracing command.
+func mainAction(ctx *cli.Context) error {
+	if err := parseCmdConfig(ctx); err != nil {
+		return err
+	}
+
 	if err := bpf.InitBpfManager(&bpf.Option{
-		KeepaliveTimeout: int(ioStat.config.periodSecond),
+		KeepaliveTimeout: int(tracingCmd.config.periodSecond),
 	}); err != nil {
 		return fmt.Errorf("init bpf: %w", err)
 	}
 	defer bpf.CloseBpfManager()
 
 	// load bpf
-	b, err := bpf.LoadBpfFromBytes("iotracing.o", iotracing, consts)
+	b, err := bpf.LoadBpfFromBytes("iotracing.o", iotracing, tracingCmd.devices)
 	if err != nil {
 		return fmt.Errorf("load bpf: %w", err)
 	}
 	defer b.Close()
 
 	// set the time to receive kernel perf events
-	timeCtx, cancel := context.WithTimeout(ctx.Context, time.Duration(ioStat.config.periodSecond)*time.Second)
+	timeCtx, cancel := context.WithTimeout(ctx.Context, time.Duration(tracingCmd.config.periodSecond)*time.Second)
 	defer cancel()
 
 	signalCtx, signalCancel := signal.NotifyContext(timeCtx, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGINT, syscall.SIGTERM)
@@ -552,8 +555,6 @@ func mainAction(ctx *cli.Context) error {
 		return fmt.Errorf("get event pipe: %w", err)
 	}
 	defer reader.Close()
-
-	getContainerInfo(ctx.String("server-address"))
 
 	var event IODelayData
 	stackCollected := uint64(0)
@@ -567,11 +568,11 @@ func mainAction(ctx *cli.Context) error {
 
 		// event.Cost(ns), ioStat.config.ioScheduleThreshold(ms)
 		// event.Cost/1000(us), 1000*ioStat.config.ioScheduleThreshold(us)
-		if event.Cost/1000 > 1000*ioStat.config.scheduleThreshold {
-			if stackCollected < ioStat.config.maxStack {
+		if event.Cost/1000 > 1000*tracingCmd.config.scheduleThreshold {
+			if stackCollected < tracingCmd.config.maxStack {
 				var containerHostname string
 				if containerID, err := getContainerByPid(event.Pid); err == nil && containerID != "" {
-					if container, ok := ioStat.containers[containerID]; ok {
+					if container, ok := tracingCmd.containers[containerID]; ok {
 						containerHostname = container.Hostname
 					} else {
 						containerHostname = containerID // if can't get the container name, we can still show the container ID.
@@ -583,7 +584,7 @@ func mainAction(ctx *cli.Context) error {
 				stackInfo.Pid = event.Pid
 				stackInfo.Latency = event.Cost / 1000
 				stackInfo.Stack = symbol.DumpKernelBackTrace(event.Stack[:], symbol.KsymbolStackMinDepth)
-				ioStat.ioData.IOStack = append(ioStat.ioData.IOStack, stackInfo)
+				tracingCmd.ioData.IOStack = append(tracingCmd.ioData.IOStack, stackInfo)
 				stackCollected++
 			}
 		}
@@ -629,19 +630,19 @@ func mainAction(ctx *cli.Context) error {
 			parseIOData(kv.pid, fileTable)
 		}
 		// Gets the top processes with the highest number of io requests
-		if uint64(i) > ioStat.config.maxProcess {
+		if uint64(i) > tracingCmd.config.maxProcess {
 			break
 		}
 	}
 
 	if ctx.IsSet("json") {
-		jsonData, err := json.Marshal(ioStat.ioData)
+		jsonData, err := json.Marshal(tracingCmd.ioData)
 		if err != nil {
 			return fmt.Errorf("marshal JSON: %w", err)
 		}
 		fmt.Println(string(jsonData))
 	} else {
-		printIOTracingData(ioStat.ioData)
+		printIOTracingData(tracingCmd.ioData)
 	}
 
 	return nil
