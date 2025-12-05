@@ -18,8 +18,11 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 	"syscall"
+
+	"golang.org/x/sys/unix"
 )
 
 // CheckFilesystemSupport checks if the given filesystem is supported.
@@ -55,4 +58,43 @@ func NetNSInodeByPid(pid int) (uint64, error) {
 		return 0, err
 	}
 	return netnsStat.Sys().(*syscall.Stat_t).Ino, nil
+}
+
+func HostnameByPid(pid uint32) (string, error) {
+	var empty string
+
+	fd, err := os.Open(fmt.Sprintf("/proc/%d/ns/uts", pid))
+	if err != nil {
+		return empty, err
+	}
+	defer fd.Close()
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	if err := unix.Setns(int(fd.Fd()), unix.CLONE_NEWUTS); err != nil {
+		return empty, err
+	}
+
+	return os.Hostname()
+}
+
+func ProcNameByPid(pid uint32) (string, error) {
+	data, err := os.ReadFile(fmt.Sprintf("/proc/%d/cmdline", pid))
+	if err != nil {
+		return "", err
+	}
+
+	if len(data) > 128 {
+		data = data[:128]
+	}
+
+	// Replace null bytes with spaces for readability
+	for i := range data {
+		if data[i] == 0 {
+			data[i] = ' '
+		}
+	}
+
+	return string(data), nil
 }
