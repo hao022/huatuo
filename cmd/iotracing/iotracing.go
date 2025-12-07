@@ -27,7 +27,6 @@ import (
 	"io"
 	"os"
 	"os/signal"
-	"sort"
 	"strconv"
 	"strings"
 	"syscall"
@@ -100,8 +99,8 @@ type LatencyInfo struct {
 	SumQ2C uint64
 }
 
-// IOBpfData contains BPF data for io_source_map.
-type IOBpfData struct {
+// IOData contains BPF data for io_source_map.
+type IOData struct {
 	Tgid            uint32
 	Pid             uint32
 	Dev             uint32
@@ -130,11 +129,6 @@ type IODelayData struct {
 	Tid       uint32
 	CPU       uint32
 	Comm      [16]byte
-}
-
-type keyValue struct {
-	pid    uint32
-	ioSize uint64
 }
 
 // parseDeviceNumbers
@@ -267,21 +261,6 @@ func parseProcFileTable(pid uint32, files *PriorityQueue) ProcFileData {
 	processData.ContainerHostname, _ = procfsutil.HostnameByPid(pid)
 
 	return processData
-}
-
-// sortProcessIOSize sorts processes by their IO size in descending order.
-func sortProcessIOSize(processIOSize map[uint32]uint64) []keyValue {
-	var kvPairs []keyValue
-
-	for k, v := range processIOSize {
-		kvPairs = append(kvPairs, keyValue{k, v})
-	}
-
-	sort.Slice(kvPairs, func(i, j int) bool {
-		return kvPairs[i].ioSize > kvPairs[j].ioSize
-	})
-
-	return kvPairs
 }
 
 // checkKprobeFunctionExists checks if a kprobe function exists in the kernel.
@@ -518,39 +497,33 @@ func mainAction(ctx *cli.Context) error {
 	}
 
 	processFileTable := make(map[uint32]*PriorityQueue)
-	processIOSize := make(map[uint32]uint64)
 
-	for _, data := range iodata {
-		var bpfData IOBpfData
+	iotable := NewTableSort()
 
-		buf := bytes.NewReader(data.Value)
-		if err := binary.Read(buf, binary.LittleEndian, &bpfData); err != nil {
+	for _, dataRaw := range iodata {
+		var data IOData
+
+		buf := bytes.NewReader(dataRaw.Value)
+		if err := binary.Read(buf, binary.LittleEndian, &data); err != nil {
 			return err
 		}
 
-		blkSize := bpfData.BlockWriteBytes + bpfData.BlockReadBytes
-		if _, ok := processIOSize[bpfData.Pid]; !ok {
-			processIOSize[bpfData.Pid] = blkSize
+		blkSize := data.BlockWriteBytes + data.BlockReadBytes
+
+		iotable.Update(data.Pid, blkSize)
+		if _, ok := processFileTable[data.Pid]; !ok {
 			pq := make(PriorityQueue, 0)
-			processFileTable[bpfData.Pid] = &pq
-		} else {
-			processIOSize[bpfData.Pid] += blkSize
+			processFileTable[data.Pid] = &pq
 		}
 
-		item := &IODataStat{&bpfData, blkSize}
-		pq := processFileTable[bpfData.Pid]
-		heap.Push(pq, item)
+		pq := processFileTable[data.Pid]
+		heap.Push(pq, &IODataStat{&data, blkSize})
 	}
 
-	// Sort by io amount per process, we only get the first few process data
-	kvPairs := sortProcessIOSize(processIOSize)
-	for i, kv := range kvPairs {
-		if files, ok := processFileTable[kv.pid]; ok {
-			tracingCmd.ioData.ProcessData = append(tracingCmd.ioData.ProcessData, parseProcFileTable(kv.pid, files))
-		}
-
-		if uint64(i) > tracingCmd.config.maxProcess {
-			break
+	pids := iotable.TopKeyN(int(tracingCmd.config.maxProcess))
+	for _, pid := range pids {
+		if files, ok := processFileTable[pid]; ok {
+			tracingCmd.ioData.ProcessData = append(tracingCmd.ioData.ProcessData, parseProcFileTable(pid, files))
 		}
 	}
 
