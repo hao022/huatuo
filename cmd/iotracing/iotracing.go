@@ -84,7 +84,7 @@ type ioTracing struct {
 	config           ioConfig
 	cssToContainerID map[uint64]string
 	containers       map[string]*pod.Container
-	devices          map[string]any
+	filters          map[string]any
 }
 
 type ioConfig struct {
@@ -491,8 +491,16 @@ func parseCmdConfig(ctx *cli.Context) error {
 	}
 
 	if tracingCmd.config.periodSecond == 0 {
-		return fmt.Errorf("invalid period: %d", tracingCmd.config.periodSecond)
+		return fmt.Errorf("period is zero")
 	}
+
+	if tracingCmd.config.scheduleThreshold == 0 {
+		return fmt.Errorf("schedule threshold is zero")
+	}
+
+	filters := make(map[string]any)
+
+	filters["FILTER_EVENT_TIMEOUT"] = tracingCmd.config.scheduleThreshold * 1000 * 1000
 
 	// if no devices, iotracing will trace all blkdev.
 	if deviceStr := ctx.String("device"); deviceStr != "" {
@@ -505,11 +513,11 @@ func parseCmdConfig(ctx *cli.Context) error {
 		var deviceArray [16]uint32
 		copy(deviceArray[:], deviceNums)
 
-		tracingCmd.devices = map[string]any{
-			"FILTER_DEVS":      deviceArray,
-			"FILTER_DEV_COUNT": uint32(len(deviceNums)),
-		}
+		filters["FILTER_DEVS"] = deviceArray
+		filters["FILTER_DEV_COUNT"] = uint32(len(deviceNums))
 	}
+
+	tracingCmd.filters = filters
 
 	getContainerInfo(ctx.String("server-address"))
 
@@ -530,7 +538,7 @@ func mainAction(ctx *cli.Context) error {
 	defer bpf.CloseBpfManager()
 
 	// load bpf
-	b, err := bpf.LoadBpfFromBytes("iotracing.o", iotracing, tracingCmd.devices)
+	b, err := bpf.LoadBpfFromBytes("iotracing.o", iotracing, tracingCmd.filters)
 	if err != nil {
 		return fmt.Errorf("load bpf: %w", err)
 	}
@@ -559,30 +567,26 @@ func mainAction(ctx *cli.Context) error {
 			return fmt.Errorf("read event: %w", err)
 		}
 
-		// event.Cost(ns), ioStat.config.ioScheduleThreshold(ms)
-		// event.Cost/1000(us), 1000*ioStat.config.ioScheduleThreshold(us)
-		if event.Cost/1000 > 1000*tracingCmd.config.scheduleThreshold {
-			if stackDepth < tracingCmd.config.maxStack {
-				var containerHostname string
-				if containerID, err := getContainerByPid(event.Pid); err == nil && containerID != "" {
-					if container, ok := tracingCmd.containers[containerID]; ok {
-						containerHostname = container.Hostname
-					} else {
-						containerHostname = containerID // if can't get the container name, we can still show the container ID.
-					}
+		if stackDepth < tracingCmd.config.maxStack {
+			var containerHostname string
+			if containerID, err := getContainerByPid(event.Pid); err == nil && containerID != "" {
+				if container, ok := tracingCmd.containers[containerID]; ok {
+					containerHostname = container.Hostname
+				} else {
+					containerHostname = containerID // if can't get the container name, we can still show the container ID.
 				}
-
-				stack := IOStack{
-					Comm:              bytesutil.ToString(event.Comm[:]),
-					ContainerHostname: containerHostname,
-					Pid:               event.Pid,
-					Latency:           event.Cost / 1000,
-					Stack:             symbol.DumpKernelBackTrace(event.Stack[:], symbol.KsymbolStackMinDepth),
-				}
-
-				tracingCmd.ioData.IOStack = append(tracingCmd.ioData.IOStack, stack)
-				stackDepth++
 			}
+
+			stack := IOStack{
+				Comm:              bytesutil.ToString(event.Comm[:]),
+				ContainerHostname: containerHostname,
+				Pid:               event.Pid,
+				Latency:           event.Cost / 1000,
+				Stack:             symbol.DumpKernelBackTrace(event.Stack[:], symbol.KsymbolStackMinDepth),
+			}
+
+			tracingCmd.ioData.IOStack = append(tracingCmd.ioData.IOStack, stack)
+			stackDepth++
 		}
 	}
 

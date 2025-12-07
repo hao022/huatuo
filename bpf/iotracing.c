@@ -10,8 +10,9 @@ char __license[] SEC("license") = "Dual MIT/GPL";
 #define PAGE_SIZE 4096
 
 // Device filter configuration
-volatile const u32 FILTER_DEVS[16] = {};  // Device array for filtering, 0 means no filter
-volatile const u32 FILTER_DEV_COUNT = 0; // Number of devices to filter
+volatile const u32 FILTER_DEVS[16] = {};
+volatile const u32 FILTER_DEV_COUNT = 0;
+volatile const u64 FILTER_EVENT_TIMEOUT = 100000000;
 
 /*
  * Check if device should be filtered
@@ -531,8 +532,7 @@ static __always_inline  int detect_io_schedule_return(struct pt_regs *ctx)
 	if (!entry)
 		return 0;
 
-	/* slow io latency at least 100ms */
-	if (now - entry->ts > 100 * 1000 * 1000) {
+	if (now - entry->ts > FILTER_EVENT_TIMEOUT) {
 		entry->pid = (id >> 32) & 0xffffffff;
 		entry->tid = pid;
 		entry->cost = now - entry->ts;
