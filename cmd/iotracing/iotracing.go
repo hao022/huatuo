@@ -131,6 +131,26 @@ type IODelayData struct {
 	Comm      [16]byte
 }
 
+func (data *IOData) FilePathName() string {
+	fileName := strings.TrimLeft(fmt.Sprintf("%s/%s/%s/%s",
+		bytesutil.ToString(data.Dentry3Name[:]),
+		bytesutil.ToString(data.Dentry2Name[:]),
+		bytesutil.ToString(data.Dentry1Name[:]),
+		bytesutil.ToString(data.FileName[:])),
+		"/")
+
+	if data.InodeNum == 0 {
+		fileName = "[direct IO]"
+	}
+
+	// check 'iocb->ki_flags & IOCB_DIRECT' and '#define IOCB_DIRECT (1 << 2)'
+	if data.Flag&0x4 == 0x4 {
+		fileName += " [direct IO]"
+	}
+
+	return fileName
+}
+
 // parseDeviceNumbers
 //
 // parses device string in format "major:minor", e.g., "8:0,253:0"
@@ -200,28 +220,14 @@ func parseProcFileTable(pid uint32, files *PriorityQueue) ProcFileData {
 			continue
 		}
 
-		dir3 := bytesutil.ToString(data.Dentry3Name[:])
-		dir2 := bytesutil.ToString(data.Dentry2Name[:])
-		dir1 := bytesutil.ToString(data.Dentry1Name[:])
-		filename := bytesutil.ToString(data.FileName[:])
-		filepath := strings.TrimLeft(fmt.Sprintf("%s/%s/%s/%s", dir3, dir2, dir1, filename), "/")
-
 		var q2c, d2c uint64
 		if data.Latency.Count > 0 {
 			q2c = data.Latency.SumQ2C / (data.Latency.Count * 1000) // us
 			d2c = data.Latency.SumD2C / (data.Latency.Count * 1000)
 		}
 
-		if data.InodeNum == 0 {
-			filepath = "[direct IO]"
-		}
-		// check 'iocb->ki_flags & IOCB_DIRECT' and '#define IOCB_DIRECT (1 << 2)'
-		if data.Flag&0x4 == 0x4 {
-			filepath += " [direct IO]"
-		}
-
 		stat := fmt.Sprintf("[%d:%d], fs_read=%db/s, fs_write=%db/s, disk_read=%db/s, disk_write=%db/s, q2c=%dus, d2c=%dus, inode=%d, %s",
-			data.Dev>>20&0xfff, data.Dev&0xfffff, rbps, wbps, drbps, dwbps, q2c, d2c, data.InodeNum, filepath)
+			data.Dev>>20&0xfff, data.Dev&0xfffff, rbps, wbps, drbps, dwbps, q2c, d2c, data.InodeNum, data.FilePathName())
 
 		// if data.Tgid == 0, it means we only catch the io from the block layer,so this is no filepath.
 		// so we need to show the container info
