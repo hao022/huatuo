@@ -285,11 +285,11 @@ func detectDiskStats(ctx context.Context) error {
 
 func loadConfig() {
 	IOstat.config.ioutilThreshold = conf.Get().AutoTracing.IOTracing.UtilThreshold
-	IOstat.config.iowaitThreshold = conf.Get().AutoTracing.IOTracing.WaitThreshold
-	IOstat.config.readThreshold = conf.Get().AutoTracing.IOTracing.ReadThreshold
-	IOstat.config.writeThreshold = conf.Get().AutoTracing.IOTracing.WriteThreshold
+	IOstat.config.iowaitThreshold = conf.Get().AutoTracing.IOTracing.AwaitThreshold
+	IOstat.config.readThreshold = conf.Get().AutoTracing.IOTracing.RbpsThreshold
+	IOstat.config.writeThreshold = conf.Get().AutoTracing.IOTracing.WbpsThreshold
 
-	IOstat.config.periodSecond = conf.Get().AutoTracing.IOTracing.PeriodSecond
+	IOstat.config.periodSecond = conf.Get().AutoTracing.IOTracing.RunIOTracingTimeout
 	if IOstat.config.periodSecond == 0 {
 		IOstat.config.periodSecond = 10
 	}
