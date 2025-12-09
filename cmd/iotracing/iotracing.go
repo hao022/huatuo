@@ -322,21 +322,17 @@ func attachAndEventPipe(ctx context.Context, b bpf.BPF) (bpf.PerfEventReader, er
 		}
 	}()
 
-	var ap1 []bpf.AttachOption
-	var ap2 []bpf.AttachOption
-
-	var supportExt4, supportXFS bool
-	if supportExt4, err = procfsutil.CheckFilesystemSupport("ext4"); err != nil {
-		return nil, err
-	}
-	if supportXFS, err = procfsutil.CheckFilesystemSupport("xfs"); err != nil {
-		return nil, err
-	}
-
-	infos, err := b.Info()
+	supportExt4, err := procfsutil.FilesystemSupported("ext4")
 	if err != nil {
 		return nil, err
 	}
+
+	supportXFS, err := procfsutil.FilesystemSupported("xfs")
+	if err != nil {
+		return nil, err
+	}
+
+	infos, _ := b.Info()
 
 	/*
 		The chosen attachment points are rq_qos_issue and rq_qos_done, which were introduced in the 4.19 kernel
@@ -349,14 +345,16 @@ func attachAndEventPipe(ctx context.Context, b bpf.BPF) (bpf.PerfEventReader, er
 		This also depends on the kernel being configured with CONFIG_BLK_WBT_MQ=y and using block-mq.
 		Of course, if other qos strategies are enabled, there is no need to worry about this.
 	*/
-	var ioStartSymbol, ioDoneSymbol string
+	var requestQosIssue, requestQosDone string
 	if checkKprobeFunctionExists("rq_qos_issue") {
-		ioStartSymbol = "rq_qos_issue"
-		ioDoneSymbol = "rq_qos_done"
+		requestQosIssue = "rq_qos_issue"
+		requestQosDone = "rq_qos_done"
 	} else {
-		ioStartSymbol = "__rq_qos_issue"
-		ioDoneSymbol = "__rq_qos_done"
+		requestQosIssue = "__rq_qos_issue"
+		requestQosDone = "__rq_qos_done"
 	}
+
+	var defaultOption []bpf.AttachOption
 
 	for _, i := range infos.ProgramsInfo {
 		if shouldSkipFilesystemProgram(i.Name, supportExt4, supportXFS) {
@@ -364,27 +362,42 @@ func attachAndEventPipe(ctx context.Context, b bpf.BPF) (bpf.PerfEventReader, er
 		}
 
 		switch i.Name {
-		case "bpf_io_schedule":
-			ap2 = append(ap2, bpf.AttachOption{ProgramName: i.Name, Symbol: "io_schedule"})
-		case "bpf_io_schedule_timeout":
-			ap2 = append(ap2, bpf.AttachOption{ProgramName: i.Name, Symbol: "io_schedule_timeout"})
 		case "bpf_rq_qos_issue":
-			ap1 = append(ap1, bpf.AttachOption{ProgramName: i.Name, Symbol: ioStartSymbol})
+			defaultOption = append(defaultOption, bpf.AttachOption{
+				ProgramName: i.Name,
+				Symbol:      requestQosIssue,
+			})
 		case "bpf_rq_qos_done":
-			ap1 = append(ap1, bpf.AttachOption{ProgramName: i.Name, Symbol: ioDoneSymbol})
+			defaultOption = append(defaultOption, bpf.AttachOption{
+				ProgramName: i.Name,
+				Symbol:      requestQosDone,
+			})
 		default:
 			symbol := strings.Split(i.SectionName, "/")
 			if len(symbol) != 2 {
 				return nil, fmt.Errorf("invalid section name: %s", i.SectionName)
 			}
-			ap1 = append(ap1, bpf.AttachOption{ProgramName: i.Name, Symbol: symbol[1]})
+
+			// Make sure we attach kretprobe of 'io_schedule' first, so we can obtain the stack
+			// in kprobe successfully.
+			switch symbol[0] {
+			case "kretprobe":
+				defaultOption = append([]bpf.AttachOption{
+					{
+						ProgramName: i.Name,
+						Symbol:      symbol[1],
+					},
+				}, defaultOption...)
+			default:
+				defaultOption = append(defaultOption, bpf.AttachOption{
+					ProgramName: i.Name,
+					Symbol:      symbol[1],
+				})
+			}
 		}
 	}
 
-	// Make sure we attach kretprobe of 'io_schedule' first, so we can obtain the stack
-	// in kprobe successfully.
-	ap1 = append(ap1, ap2...)
-	if err := b.AttachWithOptions(ap1); err != nil {
+	if err := b.AttachWithOptions(defaultOption); err != nil {
 		return nil, fmt.Errorf("attach with options: %w", err)
 	}
 	ok = true
