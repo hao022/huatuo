@@ -292,21 +292,48 @@ func checkKprobeFunctionExists(functionName string) bool {
 	return false
 }
 
-// shouldSkipFilesystemProgram determines if a filesystem program should be skipped.
-func shouldSkipFilesystemProgram(programName string, supportExt4, supportXFS bool) bool {
-	if !supportExt4 {
-		switch programName {
-		case "bpf_ext4_file_read_iter", "bpf_ext4_file_write_iter", "bpf_ext4_page_mkwrite":
-			return true
-		}
+func shouldskipFsBpfOption(name string) bool {
+	return strings.HasPrefix(name, "bpf_anyfs")
+}
+
+func fsBpfOption() []bpf.AttachOption {
+	var opts []bpf.AttachOption
+
+	if procfsutil.FsSupported("ext4") {
+		opts = append(opts, []bpf.AttachOption{
+			{
+				ProgramName: "bpf_anyfs_file_read_iter",
+				Symbol:      "ext4_file_read_iter",
+			},
+			{
+				ProgramName: "bpf_anyfs_file_write_iter",
+				Symbol:      "ext4_file_write_iter",
+			},
+			{
+				ProgramName: "bpf_anyfs_filemap_page_mkwrite",
+				Symbol:      "ext4_page_mkwrite",
+			},
+		}...)
 	}
-	if !supportXFS {
-		switch programName {
-		case "bpf_xfs_file_read_iter", "bpf_xfs_file_write_iter", "bpf_xfs_filemap_page_mkwrite":
-			return true
-		}
+
+	if procfsutil.FsSupported("xfs") {
+		opts = append(opts, []bpf.AttachOption{
+			{
+				ProgramName: "bpf_anyfs_file_read_iter",
+				Symbol:      "xfs_file_read_iter",
+			},
+			{
+				ProgramName: "bpf_anyfs_file_write_iter",
+				Symbol:      "xfs_file_write_iter",
+			},
+			{
+				ProgramName: "bpf_anyfs_filemap_page_mkwrite",
+				Symbol:      "xfs_filemap_page_mkwrite",
+			},
+		}...)
 	}
-	return false
+
+	return opts
 }
 
 // attachAndEventPipe attaches BPF programs and creates an event pipe.
@@ -321,16 +348,6 @@ func attachAndEventPipe(ctx context.Context, b bpf.BPF) (bpf.PerfEventReader, er
 			reader.Close()
 		}
 	}()
-
-	supportExt4, err := procfsutil.FilesystemSupported("ext4")
-	if err != nil {
-		return nil, err
-	}
-
-	supportXFS, err := procfsutil.FilesystemSupported("xfs")
-	if err != nil {
-		return nil, err
-	}
 
 	infos, _ := b.Info()
 
@@ -355,9 +372,8 @@ func attachAndEventPipe(ctx context.Context, b bpf.BPF) (bpf.PerfEventReader, er
 	}
 
 	var defaultOption []bpf.AttachOption
-
 	for _, i := range infos.ProgramsInfo {
-		if shouldSkipFilesystemProgram(i.Name, supportExt4, supportXFS) {
+		if shouldskipFsBpfOption(i.Name) {
 			continue
 		}
 
@@ -397,9 +413,11 @@ func attachAndEventPipe(ctx context.Context, b bpf.BPF) (bpf.PerfEventReader, er
 		}
 	}
 
+	defaultOption = append(defaultOption, fsBpfOption()...)
 	if err := b.AttachWithOptions(defaultOption); err != nil {
 		return nil, fmt.Errorf("attach with options: %w", err)
 	}
+
 	ok = true
 	return reader, nil
 }
