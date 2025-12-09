@@ -50,8 +50,8 @@ var tracingCmd ioTracing
 
 // IOStatusData contains IO status information.
 type IOStatusData struct {
-	ProcessData []ProcFileData `json:"process_data"`
-	IOStack     []IOStack      `json:"io_stack"`
+	ProcessData []ProcFileData `json:"process_io_data"`
+	IOStack     []IOStack      `json:"timeout_io_stack"`
 }
 
 // IOStack records io_schedule backtrace.
