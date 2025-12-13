@@ -265,7 +265,6 @@ func parseProcFileTable(pid uint32, files *PriorityQueue) ProcFileData {
 	}
 
 	processData.ContainerHostname, _ = procfsutil.HostnameByPid(pid)
-
 	return processData
 }
 
@@ -533,9 +532,8 @@ func mainAction(ctx *cli.Context) error {
 		return err
 	}
 
-	processFileTable := make(map[uint32]*PriorityQueue)
-
-	iotable := NewTableSort()
+	sortTable := NewSortTable()
+	fileTable := NewFileTable()
 
 	for _, dataRaw := range iodata {
 		var data IOData
@@ -547,19 +545,13 @@ func mainAction(ctx *cli.Context) error {
 
 		blkSize := data.BlockWriteBytes + data.BlockReadBytes
 
-		iotable.Update(data.Pid, blkSize)
-		if _, ok := processFileTable[data.Pid]; !ok {
-			pq := make(PriorityQueue, 0)
-			processFileTable[data.Pid] = &pq
-		}
-
-		pq := processFileTable[data.Pid]
-		heap.Push(pq, &IODataStat{&data, blkSize})
+		sortTable.Update(data.Pid, blkSize)
+		fileTable.Update(data.Pid, &IODataStat{&data, blkSize})
 	}
 
-	pids := iotable.TopKeyN(int(tracingCmd.config.maxProcess))
+	pids := sortTable.TopKeyN(int(tracingCmd.config.maxProcess))
 	for _, pid := range pids {
-		if files, ok := processFileTable[pid]; ok {
+		if files := fileTable.QueueByKey(pid); files != nil {
 			tracingCmd.ioData.ProcessData = append(tracingCmd.ioData.ProcessData, parseProcFileTable(pid, files))
 		}
 	}

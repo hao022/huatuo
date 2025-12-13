@@ -16,21 +16,21 @@ package main
 
 import "sort"
 
-type TableSort struct {
+type SortTable struct {
 	data map[uint32]uint64
 }
 
-func NewTableSort() *TableSort {
-	return &TableSort{
+func NewSortTable() *SortTable {
+	return &SortTable{
 		data: make(map[uint32]uint64),
 	}
 }
 
-func (m *TableSort) Update(key uint32, value uint64) {
+func (m *SortTable) Update(key uint32, value uint64) {
 	m.data[key] += value
 }
 
-func (m *TableSort) TopKeyN(n int) []uint32 {
+func (m *SortTable) TopKeyN(n int) []uint32 {
 	type entry struct {
 		key   uint32
 		value uint64
