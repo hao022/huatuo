@@ -83,7 +83,7 @@ type ioTracing struct {
 }
 
 type ioConfig struct {
-	periodSecond       uint64
+	durationSecond     uint64
 	scheduleThreshold  uint64 // ms
 	maxFilesPerProcess uint64
 	maxProcess         uint64
@@ -206,10 +206,10 @@ func parseProcFileTable(pid uint32, files *PriorityQueue) ProcFileData {
 	for i := uint64(0); i < tableLength; i++ {
 		data := heap.Pop(files).(*IODataStat).Data
 
-		wbps := data.FsWriteBytes / tracingCmd.config.periodSecond
-		rbps := data.FsReadBytes / tracingCmd.config.periodSecond
-		dwbps := data.BlockWriteBytes / tracingCmd.config.periodSecond
-		drbps := data.BlockReadBytes / tracingCmd.config.periodSecond
+		wbps := data.FsWriteBytes / tracingCmd.config.durationSecond
+		rbps := data.FsReadBytes / tracingCmd.config.durationSecond
+		dwbps := data.BlockWriteBytes / tracingCmd.config.durationSecond
+		drbps := data.BlockReadBytes / tracingCmd.config.durationSecond
 
 		read += rbps
 		write += wbps
@@ -430,11 +430,11 @@ func parseCmdConfig(ctx *cli.Context) error {
 			maxProcess:         ctx.Uint64("max-process"),
 			maxFilesPerProcess: ctx.Uint64("max-files-per-process"),
 			scheduleThreshold:  ctx.Uint64("schedule-threshold"),
-			periodSecond:       ctx.Uint64("duration"),
+			durationSecond:     ctx.Uint64("duration"),
 		},
 	}
 
-	if tracingCmd.config.periodSecond == 0 {
+	if tracingCmd.config.durationSecond == 0 {
 		return fmt.Errorf("period is zero")
 	}
 
@@ -472,7 +472,7 @@ func mainAction(ctx *cli.Context) error {
 	}
 
 	if err := bpf.InitBpfManager(&bpf.Option{
-		KeepaliveTimeout: int(tracingCmd.config.periodSecond),
+		KeepaliveTimeout: int(tracingCmd.config.durationSecond),
 	}); err != nil {
 		return fmt.Errorf("init bpf: %w", err)
 	}
@@ -486,7 +486,7 @@ func mainAction(ctx *cli.Context) error {
 	defer b.Close()
 
 	// set the time to receive kernel perf events
-	timeCtx, cancel := context.WithTimeout(ctx.Context, time.Duration(tracingCmd.config.periodSecond)*time.Second)
+	timeCtx, cancel := context.WithTimeout(ctx.Context, time.Duration(tracingCmd.config.durationSecond)*time.Second)
 	defer cancel()
 
 	signalCtx, signalCancel := signal.NotifyContext(timeCtx, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGINT, syscall.SIGTERM)
@@ -744,10 +744,6 @@ func main() {
 			Name:  "schedule-threshold",
 			Value: 100,
 			Usage: "IO schedule threshold in milliseconds",
-		},
-		&cli.IntFlag{
-			Name:  "period-second",
-			Usage: "Period in seconds for collecting IO data",
 		},
 		&cli.Uint64Flag{
 			Name:  "duration",
