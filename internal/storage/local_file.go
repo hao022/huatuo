@@ -51,7 +51,7 @@ func (f *localFileStorage) Write(doc *document) error {
 	encoder := json.NewEncoder(buffer)
 
 	encoder.SetEscapeHTML(false)
-	encoder.SetIndent("", "  ")
+	encoder.SetIndent("", "\t")
 
 	if err := encoder.Encode(doc); err != nil {
 		return fmt.Errorf("json Marshal by %s: %w", doc.TracerName, err)
