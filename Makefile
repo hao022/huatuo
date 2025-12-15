@@ -7,6 +7,10 @@ BPF_INCLUDE := "-I$(BPF_DIR)/include"
 APP_COMMIT ?= $(shell git describe --dirty --long --always)
 APP_BUILD_TIME=$(shell date "+%Y%m%d%H%M%S")
 APP_VERSION="2.1.0"
+APP_CMD_DIR := cmd
+APP_CMD_OUTPUT := _output
+APP_CMD_SUBDIRS := $(shell find $(APP_CMD_DIR) -mindepth 1 -maxdepth 1 -type d)
+APP_CMD_BIN_TARGETS := $(patsubst %,$(APP_CMD_OUTPUT)/bin/%,$(notdir $(APP_CMD_SUBDIRS)))
 
 GO_BUILD_STATIC := CGO_ENABLED=1 go build -tags "netgo osusergo" -gcflags=all="-N -l" \
 	-ldflags "-extldflags -static
@@ -21,14 +25,7 @@ gen-deps:
 	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 
 gen:
-	@BPF_DIR=$(BPF_DIR) BPF_COMPILE=$(BPF_COMPILE) BPF_INCLUDE=$(BPF_INCLUDE) \
-	go generate -x ./...
-
-APP_CMD_DIR := cmd
-APP_CMD_OUTPUT := _output
-
-CMD_SUBDIRS := $(shell find $(APP_CMD_DIR) -mindepth 1 -maxdepth 1 -type d)
-APP_CMD_BIN_TARGETS := $(patsubst %,$(APP_CMD_OUTPUT)/bin/%,$(notdir $(CMD_SUBDIRS)))
+	@BPF_DIR=$(BPF_DIR) BPF_COMPILE=$(BPF_COMPILE) BPF_INCLUDE=$(BPF_INCLUDE) go generate -x ./...
 
 sync:
 	@mkdir -p $(APP_CMD_OUTPUT)/conf $(APP_CMD_OUTPUT)/bpf
@@ -56,9 +53,7 @@ golangci-lint:
 	@golangci-lint run -v ./... --timeout=5m --config .golangci.yaml
 
 vendor:
-	@go mod tidy
-	@go mod verify
-	@go mod vendor
+	@go mod tidy; go mod verify; go mod vendor
 
 clean:
 	rm -rf _output $(shell find . -type f -name "*.o")
