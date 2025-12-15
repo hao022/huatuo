@@ -1,5 +1,3 @@
-GO ?= go
-
 ROOT_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 
 BPF_DIR := $(ROOT_DIR)/bpf
@@ -10,7 +8,7 @@ APP_COMMIT ?= $(shell git describe --dirty --long --always)
 APP_BUILD_TIME=$(shell date "+%Y%m%d%H%M%S")
 APP_VERSION="2.1.0"
 
-GO_BUILD_STATIC := CGO_ENABLED=1 $(GO) build -tags "netgo osusergo" -gcflags=all="-N -l" \
+GO_BUILD_STATIC := CGO_ENABLED=1 go build -tags "netgo osusergo" -gcflags=all="-N -l" \
 	-ldflags "-extldflags -static
 GO_BUILD_STATIC_WITH_VERSION := $(GO_BUILD_STATIC) \
 	-X main.AppVersion=$(APP_VERSION) \
@@ -24,7 +22,7 @@ gen-deps:
 
 gen:
 	@BPF_DIR=$(BPF_DIR) BPF_COMPILE=$(BPF_COMPILE) BPF_INCLUDE=$(BPF_INCLUDE) \
-	$(GO) generate -x ./...
+	go generate -x ./...
 
 APP_CMD_DIR := cmd
 APP_CMD_OUTPUT := _output
@@ -58,9 +56,9 @@ golangci-lint:
 	@golangci-lint run -v ./... --timeout=5m --config .golangci.yaml
 
 vendor:
-	$(GO) mod tidy
-	$(GO) mod verify
-	$(GO) mod vendor
+	@go mod tidy
+	@go mod verify
+	@go mod vendor
 
 clean:
 	rm -rf _output $(shell find . -type f -name "*.o")
