@@ -19,6 +19,8 @@ GO_BUILD_STATIC_WITH_VERSION := $(GO_BUILD_STATIC) \
 	-X main.AppGitCommit=$(APP_COMMIT) \
 	-X main.AppBuildTime=$(APP_BUILD_TIME)"
 
+IMAGE_LATEST := huatuo/huatuo-bamai:latest
+
 all: gen sync build
 
 gen-deps:
@@ -37,6 +39,12 @@ $(APP_CMD_OUTPUT)/bin/%: $(APP_CMD_DIR)/% CMD_FORCE
 	$(GO_BUILD_STATIC_WITH_VERSION) -o $@ ./$<
 
 CMD_FORCE:;
+
+docker-build:
+	@docker build --network=host --no-cache -t $(IMAGE_LATEST) -f Dockerfile .
+
+docker-clean:
+	@docker rmi $(IMAGE_LATEST)
 
 check: gen-deps imports fmt golangci-lint
 
@@ -58,4 +66,4 @@ vendor:
 clean:
 	rm -rf _output $(shell find . -type f -name "*.o")
 
-.PHONY: all gen-deps gen sync build check imports golint fmt golangci-lint vendor clean CMD_FORCE
+.PHONY: all gen-deps gen sync build check imports golint fmt golangci-lint vendor clean CMD_FORCE docker-build docker-clean
