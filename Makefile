@@ -5,8 +5,8 @@ BPF_COMPILE := $(ROOT_DIR)/build/clang.sh
 BPF_INCLUDE := "-I$(BPF_DIR)/include"
 
 APP_COMMIT ?= $(shell git describe --dirty --long --always)
-APP_BUILD_TIME=$(shell date "+%Y%m%d%H%M%S")
-APP_VERSION="2.1.0"
+APP_BUILD_TIME = $(shell date "+%Y%m%d%H%M%S")
+APP_VERSION = "2.1.0"
 APP_CMD_DIR := cmd
 APP_CMD_OUTPUT := _output
 APP_CMD_SUBDIRS := $(shell find $(APP_CMD_DIR) -mindepth 1 -maxdepth 1 -type d)
@@ -44,7 +44,7 @@ docker-build:
 	@docker build --network=host --no-cache -t $(IMAGE_LATEST) -f Dockerfile .
 
 docker-clean:
-	@docker rmi $(IMAGE_LATEST)
+	@docker rmi $(IMAGE_LATEST) || true
 
 check: gen-deps imports fmt golangci-lint
 
