@@ -17,7 +17,7 @@
 # limitations under the License.
 #
 
-WORKSPACE_DIR=$(dirname $(dirname $(readlink -f "$0")))
+WORKSPACE_DIR=$(git rev-parse --show-toplevel)
 
 set -ex
 
