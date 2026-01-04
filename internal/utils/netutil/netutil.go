@@ -23,11 +23,17 @@ import (
 
 var NativeEndian = nl.NativeEndian()
 
-// InetNtop is same as the inet_ntop(IPv4)
-func InetNtop(ip uint32) net.IP {
-	buf := make([]byte, net.IPv4len)
-	NativeEndian.PutUint32(buf, ip)
-	return net.IPv4(buf[0], buf[1], buf[2], buf[3])
+// inet_ntop addr is big-endian
+// convert IPv4 addresses (in network byte order) from binary to text
+//
+// https://man7.org/linux/man-pages/man3/inet_ntop.3.html
+func Inetv4Ntop(addr uint32) net.IP {
+	return net.IPv4(
+		byte(addr>>24),
+		byte(addr>>16),
+		byte(addr>>8),
+		byte(addr),
+	).To4()
 }
 
 // InetNtohs is same as the ntohs

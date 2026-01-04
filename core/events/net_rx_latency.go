@@ -188,7 +188,7 @@ func (c *netRecvLatTracing) Start(ctx context.Context) error {
 			where := toWhere[pd.Where]
 			lat := pd.Latency / 1000 / 1000 // ms
 			state := tcpStateMap[pd.State]
-			saddr, daddr := netutil.InetNtop(pd.Saddr).String(), netutil.InetNtop(pd.Daddr).String()
+			saddr, daddr := netutil.Inetv4Ntop(pd.Saddr).String(), netutil.Inetv4Ntop(pd.Daddr).String()
 			sport, dport := netutil.InetNtohs(pd.Sport), netutil.InetNtohs(pd.Dport)
 			seq, ackSeq := netutil.InetNtohl(pd.Seq), netutil.InetNtohl(pd.AckSeq)
 			pktLen := pd.PktLen
