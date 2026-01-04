@@ -23,7 +23,7 @@ import (
 	"path"
 	"sync"
 
-	"huatuo-bamai/internal/rotator"
+	rotator "huatuo-bamai/internal/file_rotator"
 )
 
 type localFileStorage struct {
