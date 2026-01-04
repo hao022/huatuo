@@ -74,7 +74,7 @@ func (f *localFileStorage) newFileWriter(filename string) io.Writer {
 	return f.files[filename]
 }
 
-func (f *localFileStorage) fileWriterByName(name string) io.Writer {
+func (f *localFileStorage) writerByName(name string) io.Writer {
 	if writer, ok := f.files[name]; ok {
 		return writer
 	}
@@ -90,6 +90,6 @@ func (f *localFileStorage) fileWriterByName(name string) io.Writer {
 }
 
 func (f *localFileStorage) write(name string, content []byte) error {
-	_, err := f.fileWriterByName(name).Write(content)
+	_, err := f.writerByName(name).Write(content)
 	return err
 }
