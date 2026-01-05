@@ -48,7 +48,7 @@ type ioTracing struct{}
 
 // IOStatusData contains IO status information.
 type IOStatusData struct {
-	Reason      *ReasonSnapshot `json:"reason"`
+	Reason      *ReasonSnapshot `json:"reason_snapshot"`
 	ProcessData []ProcFileData  `json:"process_io_data"`
 	IOStack     []IOStack       `json:"timeout_io_stack"`
 }
