@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package rotator
+package filerotate
 
 import (
 	"os"
@@ -26,7 +26,7 @@ func TestNewSizeRotator(t *testing.T) {
 	maxRotation := 3
 	rotationSize := 1 // 1 MB
 
-	rotator := NewSizeRotator(path, maxRotation, rotationSize)
+	rotator := NewFileRotator(path, maxRotation, rotationSize)
 	if rotator == nil {
 		t.Fatal("NewSizeRotator returned nil")
 	}
@@ -43,7 +43,7 @@ func TestFileRotator_WriteAndRotate(t *testing.T) {
 	maxRotation := 2
 	rotationSize := 1 // 1 MB
 
-	rotator := NewSizeRotator(path, maxRotation, rotationSize)
+	rotator := NewFileRotator(path, maxRotation, rotationSize)
 
 	// Write 0.5 MB data less than rotation size
 	data := make([]byte, 512*1024)
@@ -99,7 +99,7 @@ func TestFileRotator_MaxBackups(t *testing.T) {
 	maxRotation := 2
 	rotationSize := 1 // 1 MB
 
-	rotator := NewSizeRotator(path, maxRotation, rotationSize)
+	rotator := NewFileRotator(path, maxRotation, rotationSize)
 
 	data := make([]byte, 1024*1024)
 
@@ -133,7 +133,7 @@ func TestFileRotator_MaxBackups(t *testing.T) {
 
 func TestFileRotator_CloseAndWrite(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "test.log")
-	rotator := NewSizeRotator(path, 3, 1)
+	rotator := NewFileRotator(path, 3, 1)
 
 	if err := rotator.Close(); err != nil {
 		t.Errorf("close failed: %v", err)

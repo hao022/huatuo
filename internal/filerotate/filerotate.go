@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package rotator
+package filerotate
 
 import (
 	"io"
@@ -61,8 +61,8 @@ type fileRotator struct {
 	logger *lumberjack.Logger
 }
 
-// NewSizeRotator create a rotatable logger
-func NewSizeRotator(path string, maxRotation, rotationSize int) io.WriteCloser {
+// NewFileRotator create a rotatable logger
+func NewFileRotator(path string, maxRotation, rotationSize int) io.WriteCloser {
 	return &fileRotator{
 		&lumberjack.Logger{
 			Filename:   path,
