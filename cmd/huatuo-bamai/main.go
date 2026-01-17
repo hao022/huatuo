@@ -31,12 +31,12 @@ import (
 	"huatuo-bamai/internal/cgroups"
 	"huatuo-bamai/internal/conf"
 	"huatuo-bamai/internal/log"
+	"huatuo-bamai/internal/pidfile"
 	"huatuo-bamai/internal/pod"
 	"huatuo-bamai/internal/procfs"
 	"huatuo-bamai/internal/services"
 	"huatuo-bamai/internal/storage"
 	"huatuo-bamai/internal/utils/executil"
-	"huatuo-bamai/internal/utils/pidutil"
 	"huatuo-bamai/pkg/tracing"
 
 	"github.com/urfave/cli/v2"
@@ -47,10 +47,10 @@ func mainAction(ctx *cli.Context) error {
 		return fmt.Errorf("invalid param %v", ctx.Args())
 	}
 
-	if err := pidutil.LockPidFile(ctx.App.Name); err != nil {
+	if err := pidfile.Lock(ctx.App.Name); err != nil {
 		return fmt.Errorf("failed to lock pid file: %w", err)
 	}
-	defer pidutil.RemovePidFile(ctx.App.Name)
+	defer pidfile.Remove(ctx.App.Name)
 
 	// init cpu quota
 	cgr, err := cgroups.NewCgroupManager()

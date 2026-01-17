@@ -1,4 +1,4 @@
-// Copyright 2025 The HuaTuo Authors
+// Copyright 2025, 2026 The HuaTuo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package pidutil
+package pidfile
 
 import (
 	"bytes"
@@ -24,13 +24,13 @@ import (
 
 var defaultDirPath = "/var/run"
 
-func fullPath(name string) string {
+func path(name string) string {
 	return fmt.Sprintf("%s/%s.pid", defaultDirPath, name)
 }
 
-// LockPidFile lock runtime pidfile
-func LockPidFile(name string) error {
-	fd, err := syscall.Open(fullPath(name), os.O_CREATE|os.O_RDWR, 0o666)
+// Lock pid with file
+func Lock(name string) error {
+	fd, err := syscall.Open(path(name), os.O_CREATE|os.O_RDWR, 0o666)
 	if err != nil {
 		return err
 	}
@@ -40,15 +40,13 @@ func LockPidFile(name string) error {
 		return err
 	}
 
-	if _, err := syscall.Write(fd, []byte(strconv.Itoa(os.Getpid()))); err != nil {
-		return err
-	}
-	return nil
+	_, err = syscall.Write(fd, []byte(strconv.Itoa(os.Getpid())))
+	return err
 }
 
-// RemovePidFile aremove runtime pidfile
-func RemovePidFile(name string) {
-	os.Remove(fullPath(name))
+// Remove remove the pidfile
+func Remove(name string) {
+	os.Remove(path(name))
 }
 
 // Read reads the "PID file" at path, and returns the PID if it contains a
