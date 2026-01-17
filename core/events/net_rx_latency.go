@@ -29,7 +29,6 @@ import (
 	"huatuo-bamai/internal/storage"
 	"huatuo-bamai/internal/utils/bytesutil"
 	"huatuo-bamai/internal/utils/netutil"
-	"huatuo-bamai/internal/utils/procfsutil"
 	"huatuo-bamai/pkg/tracing"
 
 	"golang.org/x/sys/unix"
@@ -149,7 +148,7 @@ func (c *netRecvLatTracing) Start(ctx context.Context) error {
 	b.WaitDetachByBreaker(childCtx, cancel)
 
 	// save host netns
-	hostNetNsInode, err := procfsutil.NetNSInodeByPid(1)
+	hostNetNsInode, err := netutil.NetNSInodeByPid(1)
 	if err != nil {
 		return fmt.Errorf("get host netns inode: %w", err)
 	}
@@ -232,7 +231,7 @@ func (c *netRecvLatTracing) Start(ctx context.Context) error {
 
 func ignore(pid uint64, comm string, hostNetnsInode uint64) (containerID string, skip bool, err error) {
 	// check if its netns same as host netns
-	dstInode, err := procfsutil.NetNSInodeByPid(int(pid))
+	dstInode, err := netutil.NetNSInodeByPid(int(pid))
 	if err != nil {
 		// ignore the missing program
 		if errors.Is(err, syscall.ENOENT) {

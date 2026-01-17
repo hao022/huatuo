@@ -1,4 +1,4 @@
-// Copyright 2025 The HuaTuo Authors
+// Copyright 2025, 2026 The HuaTuo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,49 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package procfsutil
+package executil
 
 import (
-	"bufio"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
-	"syscall"
 )
 
-// FsSupported checks if the given filesystem is supported.
-// It reads the /proc/filesystems file to determine supported filesystems.
-// Parameters:
-//   - filesystem: the filesystem type to check
-//
-// Returns:
-//   - bool: whether the filesystem is supported
-func FsSupported(filesystem string) bool {
-	file, err := os.Open("/proc/filesystems")
+func RunningDir() (string, error) {
+	exePath, err := os.Executable()
 	if err != nil {
-		return false
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := scanner.Text()
-		fields := strings.Fields(line)
-		if len(fields) > 0 && fields[len(fields)-1] == filesystem {
-			return true
-		}
+		return "", err
 	}
 
-	return false
-}
-
-// NetNSInode returns the inode of the network namespace.
-func NetNSInodeByPid(pid int) (uint64, error) {
-	netnsStat, err := os.Stat(fmt.Sprintf("/proc/%d/ns/net", pid))
-	if err != nil {
-		return 0, err
-	}
-	return netnsStat.Sys().(*syscall.Stat_t).Ino, nil
+	return filepath.Dir(exePath), nil
 }
 
 func HostnameByPid(pid uint32) (string, error) {

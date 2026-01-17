@@ -1,4 +1,4 @@
-// Copyright 2025 The HuaTuo Authors
+// Copyright 2026 The HuaTuo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,18 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package executil
+package netutil
 
 import (
+	"fmt"
 	"os"
-	"path/filepath"
+	"syscall"
 )
 
-func RunningDir() (string, error) {
-	exePath, err := os.Executable()
+// NetNSInode returns the inode of the network namespace.
+func NetNSInodeByPid(pid int) (uint64, error) {
+	netnsStat, err := os.Stat(fmt.Sprintf("/proc/%d/ns/net", pid))
 	if err != nil {
-		return "", err
+		return 0, err
 	}
-
-	return filepath.Dir(exePath), nil
+	return netnsStat.Sys().(*syscall.Stat_t).Ino, nil
 }

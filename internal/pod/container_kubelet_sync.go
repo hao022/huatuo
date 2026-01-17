@@ -28,7 +28,7 @@ import (
 	"time"
 
 	"huatuo-bamai/internal/log"
-	"huatuo-bamai/internal/utils/procfsutil"
+	"huatuo-bamai/internal/utils/netutil"
 
 	corev1 "k8s.io/api/core/v1"
 	kubeletconfig "k8s.io/kubelet/config/v1beta1"
@@ -363,7 +363,7 @@ func kubeletUpdateContainer(containerID string, container *corev1.Container, con
 	}
 
 	// net namespace
-	nsInode, err := procfsutil.NetNSInodeByPid(initPid)
+	nsInode, err := netutil.NetNSInodeByPid(initPid)
 	if err != nil {
 		return fmt.Errorf("failed to get net namespace inode by pid: %w", err)
 	}

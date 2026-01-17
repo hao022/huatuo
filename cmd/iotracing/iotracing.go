@@ -38,7 +38,7 @@ import (
 	"huatuo-bamai/internal/log"
 	"huatuo-bamai/internal/symbol"
 	"huatuo-bamai/internal/utils/bytesutil"
-	"huatuo-bamai/internal/utils/procfsutil"
+	"huatuo-bamai/internal/utils/executil"
 	"huatuo-bamai/pkg/types"
 )
 
@@ -248,7 +248,7 @@ func parseProcFileTable(pid uint32, files *PriorityQueue) ProcFileData {
 		}
 	}
 
-	cmdline, err := procfsutil.ProcNameByPid(pid)
+	cmdline, err := executil.ProcNameByPid(pid)
 	if err != nil {
 		cmdline = comm
 	}
@@ -264,7 +264,7 @@ func parseProcFileTable(pid uint32, files *PriorityQueue) ProcFileData {
 		FileStat:  fileStat,
 	}
 
-	processData.ContainerHostname, _ = procfsutil.HostnameByPid(pid)
+	processData.ContainerHostname, _ = executil.HostnameByPid(pid)
 	return processData
 }
 
@@ -295,10 +295,29 @@ func shouldskipFsBpfOption(name string) bool {
 	return strings.HasPrefix(name, "bpf_anyfs")
 }
 
+func fsSupported(filesystem string) bool {
+	file, err := os.Open("/proc/filesystems")
+	if err != nil {
+		return false
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		fields := strings.Fields(line)
+		if len(fields) > 0 && fields[len(fields)-1] == filesystem {
+			return true
+		}
+	}
+
+	return false
+}
+
 func fsBpfOption() []bpf.AttachOption {
 	var opts []bpf.AttachOption
 
-	if procfsutil.FsSupported("ext4") {
+	if fsSupported("ext4") {
 		opts = append(opts, []bpf.AttachOption{
 			{
 				ProgramName: "bpf_anyfs_file_read_iter",
@@ -315,7 +334,7 @@ func fsBpfOption() []bpf.AttachOption {
 		}...)
 	}
 
-	if procfsutil.FsSupported("xfs") {
+	if fsSupported("xfs") {
 		opts = append(opts, []bpf.AttachOption{
 			{
 				ProgramName: "bpf_anyfs_file_read_iter",
@@ -508,7 +527,7 @@ func mainAction(ctx *cli.Context) error {
 		}
 
 		if stackDepth < tracingCmd.config.maxStack {
-			hostname, _ := procfsutil.HostnameByPid(event.Pid)
+			hostname, _ := executil.HostnameByPid(event.Pid)
 
 			stack := IOStack{
 				Comm:              bytesutil.ToString(event.Comm[:]),
