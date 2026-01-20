@@ -46,6 +46,7 @@ test_setup() {
     --region "huatuo-test" \
     --sysfs "${FIXTURES}/sys" \
     --procfs "${FIXTURES}/proc" \
+    --dev "${FIXTURES}/dev" \
     --disable-kubelet \
     --disable-storage \
     > "${TMPDIR}/huatuo.log" 2>&1 &

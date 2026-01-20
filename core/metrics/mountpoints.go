@@ -15,9 +15,8 @@
 package collector
 
 import (
-	"github.com/prometheus/procfs"
-
 	"huatuo-bamai/internal/conf"
+	"huatuo-bamai/internal/procfs"
 	"huatuo-bamai/pkg/metric"
 	"huatuo-bamai/pkg/tracing"
 )

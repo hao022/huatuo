@@ -12,38 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package sysfs
+package procfs
 
-import (
-	"os"
+import "github.com/prometheus/procfs"
 
-	"huatuo-bamai/internal/procfs"
-	"huatuo-bamai/internal/procfs/common"
+type Proc = procfs.Proc
 
-	"github.com/prometheus/procfs/sysfs"
-)
-
-type (
-	FS       = sysfs.FS
-	NetClass = sysfs.NetClass
-)
-
-// NewDefaultFS returns a new proc FS using runtime-initialized mount points.
-func NewDefaultFS() (FS, error) {
-	return sysfs.NewFS(procfs.DefaultSysMountPoint)
+func Self() (procfs.Proc, error) {
+	fs, err := NewFS(DefaultProcMountPoint)
+	if err != nil {
+		return procfs.Proc{}, err
+	}
+	return fs.Self()
 }
 
-func DefaultPath(path string) (string, error) {
-	sysPath, err := common.DefaultFS(procfs.DefaultSysMountPoint)
+// NewProc returns a process for the given pid under /proc.
+func NewProc(pid int) (procfs.Proc, error) {
+	fs, err := NewFS(DefaultProcMountPoint)
 	if err != nil {
-		return "", err
+		return procfs.Proc{}, err
 	}
-
-	targetPath := sysPath.Path(path)
-	_, err = os.Stat(targetPath)
-	if err != nil {
-		return "", err
-	}
-
-	return targetPath, nil
+	return fs.Proc(pid)
 }

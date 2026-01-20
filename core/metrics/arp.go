@@ -15,18 +15,13 @@
 package collector
 
 import (
-	"bufio"
 	"fmt"
-	"os"
-	"strconv"
-	"strings"
 
 	"huatuo-bamai/internal/pod"
+	"huatuo-bamai/internal/procfs"
 	"huatuo-bamai/pkg/metric"
 	"huatuo-bamai/pkg/tracing"
 )
-
-var arpCachePath = "/proc/net/stat/arp_cache"
 
 type arpCollector struct {
 	metric []*metric.Data
@@ -48,59 +43,26 @@ func newArp() (*tracing.EventTracingAttr, error) {
 	}, nil
 }
 
-// NetStat contains statistics for all the counters from one file.
-// should be exported for /proc/net/stat/ndisc_cache
-type NetStat struct {
-	Stats    map[string]uint64
-	Filename string
-}
-
-func parseNetstatCache(filePath string) (NetStat, error) {
-	netStat := NetStat{
-		Stats: make(map[string]uint64),
-	}
-
-	file, err := os.Open(filePath)
+func (c *arpCollector) updateHostArp() ([]*metric.Data, error) {
+	arpPath, err := procfs.DefaultPath("1/net/arp")
 	if err != nil {
-		return netStat, err
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	scanner.Scan()
-
-	// First string is always a header for stats
-	var headers []string
-	headers = append(headers, strings.Fields(scanner.Text())...)
-
-	// Fast path ...
-	scanner.Scan()
-	for num, counter := range strings.Fields(scanner.Text()) {
-		value, err := strconv.ParseUint(counter, 16, 64)
-		if err != nil {
-			return NetStat{}, err
-		}
-		netStat.Stats[headers[num]] = value
+		return nil, err
 	}
 
-	return netStat, nil
-}
-
-func (c *arpCollector) updateHostArp() []*metric.Data {
-	count, err := fileLineCounter("/proc/1/net/arp")
+	count, err := fileLineCounter(arpPath)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
-	stat, err := parseNetstatCache(arpCachePath)
+	stat, err := procfs.ARPCacheStats()
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	c.metric[0].Value = float64(count - 1)
 	c.metric[1].Value = float64(stat.Stats["entries"])
 
-	return c.metric
+	return c.metric, err
 }
 
 func (c *arpCollector) Update() ([]*metric.Data, error) {
@@ -120,5 +82,10 @@ func (c *arpCollector) Update() ([]*metric.Data, error) {
 		data = append(data, metric.NewContainerGaugeData(container, "entries", float64(count-1), "arp for container and host", nil))
 	}
 
-	return append(data, c.updateHostArp()...), nil
+	hostMetrics, err := c.updateHostArp()
+	if err != nil {
+		return nil, err
+	}
+
+	return append(data, hostMetrics...), nil
 }

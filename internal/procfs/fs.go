@@ -15,7 +15,11 @@
 package procfs
 
 import (
+	"os"
+
 	"github.com/prometheus/procfs"
+
+	"huatuo-bamai/internal/procfs/common"
 )
 
 var (
@@ -24,6 +28,8 @@ var (
 
 	// DefaultSysMountPoint is the common mount point of the sys filesystem.
 	DefaultSysMountPoint = "/sys"
+	// DefaultDevMountPoint is the common mount point of the dev path.
+	DefaultDevMountPoint = "/dev"
 )
 
 type FS = procfs.FS
@@ -40,4 +46,19 @@ func NewFS(procMount string) (FS, error) {
 		return NewDefaultFS()
 	}
 	return procfs.NewFS(DefaultProcMountPoint)
+}
+
+func DefaultPath(path string) (string, error) {
+	procPath, err := common.DefaultFS(DefaultProcMountPoint)
+	if err != nil {
+		return "", err
+	}
+
+	targetPath := procPath.Path(path)
+	_, err = os.Stat(targetPath)
+	if err != nil {
+		return "", err
+	}
+
+	return targetPath, nil
 }

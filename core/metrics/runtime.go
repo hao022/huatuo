@@ -20,10 +20,9 @@ import (
 
 	"huatuo-bamai/internal/cgroups"
 	"huatuo-bamai/internal/cgroups/stats"
+	"huatuo-bamai/internal/procfs"
 	"huatuo-bamai/pkg/metric"
 	"huatuo-bamai/pkg/tracing"
-
-	"github.com/prometheus/procfs"
 )
 
 type runtimeCollector struct {

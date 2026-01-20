@@ -26,6 +26,7 @@ import (
 	"huatuo-bamai/internal/bpf"
 	"huatuo-bamai/internal/conf"
 	"huatuo-bamai/internal/log"
+	"huatuo-bamai/internal/procfs/sysfs"
 	"huatuo-bamai/internal/utils/parseutil"
 	"huatuo-bamai/internal/utils/sysfsutil"
 	"huatuo-bamai/pkg/metric"
@@ -43,6 +44,7 @@ type netdevHw struct {
 	isTracerRunning     bool
 	ifaceSwDropCounters map[string]uint64
 	ifaceList           map[string]int
+	sysNetPath          string
 }
 
 //go:generate $BPF_COMPILE $BPF_INCLUDE -s $BPF_DIR/netdev_hw.c -o $BPF_DIR/netdev_hw.o
@@ -91,11 +93,17 @@ func newNetdevHw() (*tracing.EventTracingAttr, error) {
 		log.Debugf("support iface %s [%s] rx_dropped, and metric idx %d", iface, drvInfo.Driver, ifaceIndex[iface])
 	}
 
+	classNetPath, err := sysfs.DefaultPath("class/net")
+	if err != nil {
+		return nil, err
+	}
+
 	return &tracing.EventTracingAttr{
 		TracingData: &netdevHw{
 			data:                ifaceRxDropped,
 			ifaceList:           ifaceIndex,
 			ifaceSwDropCounters: make(map[string]uint64),
+			sysNetPath:          classNetPath,
 		},
 		Interval: 10,
 		Flag:     tracing.FlagTracing | tracing.FlagMetric,
@@ -119,7 +127,7 @@ func (netdev *netdevHw) Update() ([]*metric.Data, error) {
 		}
 
 		for name := range counters {
-			counters[name], _ = readStat(iface, name)
+			counters[name], _ = netdev.readStat(iface, name)
 		}
 
 		count := counters["rx_missed_errors"]
@@ -137,13 +145,13 @@ func (netdev *netdevHw) Update() ([]*metric.Data, error) {
 	return netdev.data, nil
 }
 
-func readStat(iface, stat string) (uint64, error) {
-	return parseutil.ReadUint(filepath.Join("/sys/class/net", iface, "statistics", stat))
+func (netdev *netdevHw) readStat(iface, stat string) (uint64, error) {
+	return parseutil.ReadUint(filepath.Join(netdev.sysNetPath, iface, "statistics", stat))
 }
 
 func (netdev *netdevHw) updateIfaceSwDropCounter() error {
 	for iface := range netdev.ifaceList {
-		_, _ = parseutil.ReadUint("/sys/class/net/" + iface + "/carrier_down_count")
+		_, _ = parseutil.ReadUint(netdev.sysNetPath + iface + "/carrier_down_count")
 	}
 
 	// dump rx_dropped counters

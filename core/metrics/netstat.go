@@ -28,6 +28,7 @@ import (
 	"huatuo-bamai/internal/conf"
 	"huatuo-bamai/internal/log"
 	"huatuo-bamai/internal/pod"
+	"huatuo-bamai/internal/procfs"
 	"huatuo-bamai/pkg/metric"
 	"huatuo-bamai/pkg/tracing"
 )
@@ -80,12 +81,12 @@ func (c *netstatCollector) getStatMetrics(container *pod.Container, filter *fiel
 		pid = container.InitPid
 	}
 
-	pidProc := filepath.Join("/proc", strconv.Itoa(pid))
-	netStats, err := c.procNetstats(filepath.Join(pidProc, "net/netstat"))
+	netStats, err := c.readProcNetFile(pid, "netstat")
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get netstats for %v: %w", container, err)
 	}
-	snmpStats, err := c.procNetstats(filepath.Join(pidProc, "net/snmp"))
+
+	snmpStats, err := c.readProcNetFile(pid, "snmp")
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get SNMP stats for %v: %w", container, err)
 	}
@@ -158,4 +159,14 @@ func (c *netstatCollector) procNetstats(fileName string) (map[string]map[string]
 	}
 
 	return netStats, scanner.Err()
+}
+
+func (c *netstatCollector) readProcNetFile(pid int, file string) (map[string]map[string]string, error) {
+	path, err := procfs.DefaultPath(
+		filepath.Join(strconv.Itoa(pid), "net", file),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return c.procNetstats(path)
 }

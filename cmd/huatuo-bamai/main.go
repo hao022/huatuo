@@ -264,6 +264,10 @@ func main() {
 			Name:  "sysfs",
 			Usage: "sysfs mountpoint",
 		},
+		&cli.StringFlag{
+			Name:  "dev",
+			Usage: "dev mountpoint",
+		},
 	}
 
 	app.Before = func(ctx *cli.Context) error {
@@ -311,6 +315,9 @@ func main() {
 		}
 		if ctx.String("sysfs") != "" {
 			procfs.DefaultSysMountPoint = ctx.String("sysfs")
+		}
+		if ctx.String("dev") != "" {
+			procfs.DefaultDevMountPoint = ctx.String("dev")
 		}
 
 		if ctx.Bool("log-debug") {
