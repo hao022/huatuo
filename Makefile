@@ -23,7 +23,7 @@ IMAGE_LATEST := huatuo/huatuo-bamai:latest
 all: gen sync build
 
 gen:
-	@BPF_DIR=$(BPF_DIR) BPF_COMPILE=$(BPF_COMPILE) BPF_INCLUDE=$(BPF_INCLUDE) go generate -x ./...
+	@BPF_DIR=$(BPF_DIR) BPF_COMPILE=$(BPF_COMPILE) BPF_INCLUDE=$(BPF_INCLUDE) go generate -run "BPF_COMPILE" -x ./...
 
 sync:
 	@mkdir -p $(APP_CMD_OUTPUT)/conf $(APP_CMD_OUTPUT)/bpf
