@@ -21,20 +21,20 @@ import (
 	"huatuo-bamai/pkg/tracing"
 )
 
-type mountPointStatCollector struct{}
+type mountPointCollector struct{}
 
 func init() {
-	tracing.RegisterEventTracing("mountpoint_perm", newMountPointStat)
+	tracing.RegisterEventTracing("mountpoint_perm", newMountPoint)
 }
 
-func newMountPointStat() (*tracing.EventTracingAttr, error) {
+func newMountPoint() (*tracing.EventTracingAttr, error) {
 	return &tracing.EventTracingAttr{
-		TracingData: &mountPointStatCollector{},
+		TracingData: &mountPointCollector{},
 		Flag:        tracing.FlagMetric,
 	}, nil
 }
 
-func (c *mountPointStatCollector) Update() ([]*metric.Data, error) {
+func (c *mountPointCollector) Update() ([]*metric.Data, error) {
 	fs, err := procfs.NewDefaultFS()
 	if err != nil {
 		return nil, err
