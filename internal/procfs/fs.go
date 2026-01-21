@@ -39,13 +39,10 @@ func NewDefaultFS() (FS, error) {
 	return procfs.NewFS(DefaultProcMountPoint)
 }
 
-// NewFS returns a new proc FS mounted under the given proc mount point.
-// If procMount is empty, runtime default is used.
-func NewFS(procMount string) (FS, error) {
-	if procMount == "" {
-		return NewDefaultFS()
-	}
-	return procfs.NewFS(DefaultProcMountPoint)
+// NewFS returns a new proc FS mounted under the given proc mountPoint. It will error
+// if the mount point directory can't be read or is a file.
+func NewFS(mountPoint string) (FS, error) {
+	return procfs.NewFS(mountPoint)
 }
 
 func DefaultPath(path string) (string, error) {
