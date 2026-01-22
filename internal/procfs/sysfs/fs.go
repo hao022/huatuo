@@ -15,10 +15,9 @@
 package sysfs
 
 import (
-	"os"
+	"path/filepath"
 
 	"huatuo-bamai/internal/procfs"
-	"huatuo-bamai/internal/procfs/common"
 
 	"github.com/prometheus/procfs/sysfs"
 )
@@ -33,17 +32,8 @@ func NewDefaultFS() (FS, error) {
 	return sysfs.NewFS(procfs.DefaultSysMountPoint)
 }
 
-func DefaultPath(path string) (string, error) {
-	sysPath, err := common.DefaultFS(procfs.DefaultSysMountPoint)
-	if err != nil {
-		return "", err
-	}
+func Path(p ...string) string {
+	fs := procfs.DefaultSysMountPoint
 
-	targetPath := sysPath.Path(path)
-	_, err = os.Stat(targetPath)
-	if err != nil {
-		return "", err
-	}
-
-	return targetPath, nil
+	return filepath.Join(append([]string{fs}, p...)...)
 }

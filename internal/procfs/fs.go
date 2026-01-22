@@ -15,11 +15,9 @@
 package procfs
 
 import (
-	"os"
+	"path/filepath"
 
 	"github.com/prometheus/procfs"
-
-	"huatuo-bamai/internal/procfs/common"
 )
 
 var (
@@ -45,17 +43,8 @@ func NewFS(mountPoint string) (FS, error) {
 	return procfs.NewFS(mountPoint)
 }
 
-func DefaultPath(path string) (string, error) {
-	procPath, err := common.DefaultFS(DefaultProcMountPoint)
-	if err != nil {
-		return "", err
-	}
+func Path(p ...string) string {
+	fs := DefaultProcMountPoint
 
-	targetPath := procPath.Path(path)
-	_, err = os.Stat(targetPath)
-	if err != nil {
-		return "", err
-	}
-
-	return targetPath, nil
+	return filepath.Join(append([]string{fs}, p...)...)
 }

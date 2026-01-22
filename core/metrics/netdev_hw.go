@@ -93,17 +93,12 @@ func newNetdevHw() (*tracing.EventTracingAttr, error) {
 		log.Debugf("support iface %s [%s] rx_dropped, and metric idx %d", iface, drvInfo.Driver, ifaceIndex[iface])
 	}
 
-	classNetPath, err := sysfs.DefaultPath("class/net")
-	if err != nil {
-		return nil, err
-	}
-
 	return &tracing.EventTracingAttr{
 		TracingData: &netdevHw{
 			data:                ifaceRxDropped,
 			ifaceList:           ifaceIndex,
 			ifaceSwDropCounters: make(map[string]uint64),
-			sysNetPath:          classNetPath,
+			sysNetPath:          sysfs.Path("class/net"),
 		},
 		Interval: 10,
 		Flag:     tracing.FlagTracing | tracing.FlagMetric,

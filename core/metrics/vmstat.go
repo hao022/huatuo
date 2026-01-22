@@ -71,12 +71,7 @@ func (c *vmStatCollector) Update() ([]*metric.Data, error) {
 	filter := newFieldFilter(conf.Get().MetricCollector.Vmstat.Excluded,
 		conf.Get().MetricCollector.Vmstat.Included)
 
-	vmStat, err := procfs.DefaultPath("vmstat")
-	if err != nil {
-		return nil, err
-	}
-
-	file, err := os.Open(vmStat)
+	file, err := os.Open(procfs.Path("vmstat"))
 	if err != nil {
 		return nil, err
 	}

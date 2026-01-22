@@ -21,7 +21,6 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -162,11 +161,5 @@ func (c *netstatCollector) procNetstats(fileName string) (map[string]map[string]
 }
 
 func (c *netstatCollector) readProcNetFile(pid int, file string) (map[string]map[string]string, error) {
-	path, err := procfs.DefaultPath(
-		filepath.Join(strconv.Itoa(pid), "net", file),
-	)
-	if err != nil {
-		return nil, err
-	}
-	return c.procNetstats(path)
+	return c.procNetstats(procfs.Path(strconv.Itoa(pid), "net", file))
 }

@@ -44,12 +44,7 @@ func newArp() (*tracing.EventTracingAttr, error) {
 }
 
 func (c *arpCollector) updateHostArp() ([]*metric.Data, error) {
-	arpPath, err := procfs.DefaultPath("1/net/arp")
-	if err != nil {
-		return nil, err
-	}
-
-	count, err := fileLineCounter(arpPath)
+	count, err := fileLineCounter(procfs.Path("1/net/arp"))
 	if err != nil {
 		return nil, err
 	}

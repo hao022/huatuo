@@ -33,12 +33,7 @@ func ARPCacheStats() (arpCacheStats, error) {
 		Stats: make(map[string]uint64),
 	}
 
-	path, err := DefaultPath("net/stat/arp_cache")
-	if err != nil {
-		return netStat, err
-	}
-
-	file, err := os.Open(path)
+	file, err := os.Open(Path("net/stat/arp_cache"))
 	if err != nil {
 		return netStat, err
 	}

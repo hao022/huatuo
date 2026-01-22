@@ -21,7 +21,6 @@ package collector
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strconv"
 
 	"huatuo-bamai/internal/conf"
@@ -107,11 +106,10 @@ func (c *netdevCollector) netlinkStats(container *pod.Container, filter *fieldFi
 	if container != nil {
 		pid = container.InitPid
 	}
-	netPath, err := procfs.DefaultPath(filepath.Join(strconv.Itoa(pid), "ns/net"))
-	if err != nil {
-		return nil, err
-	}
-	file, err := os.Open(netPath)
+
+	path := procfs.Path(strconv.Itoa(pid), "ns/net")
+
+	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
