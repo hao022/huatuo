@@ -48,20 +48,21 @@ func NewRegister(blackListed []string) (map[string]*EventTracingAttr, error) {
 		tracingMap := make(map[string]*EventTracingAttr)
 		var attr *EventTracingAttr
 
-		for key, factory := range factories {
-			if slices.Contains(blackListed, key) {
+		for name, factory := range factories {
+			if slices.Contains(blackListed, name) {
 				continue
 			}
 
 			attr, err = factory()
 			if err != nil {
+				err = fmt.Errorf("traing name: %s, err: [%w]", name, err)
 				return
 			}
 			if attr.Flag&(FlagTracing|FlagMetric) == 0 {
-				err = fmt.Errorf("invalid flag")
+				err = fmt.Errorf("traing name: %s, invalid flag", name)
 				return
 			}
-			tracingMap[key] = attr
+			tracingMap[name] = attr
 		}
 		tracingEventAttrMap = tracingMap
 	})
