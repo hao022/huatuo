@@ -15,9 +15,12 @@
 package tracing
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"sync"
+
+	"huatuo-bamai/pkg/types"
 )
 
 const (
@@ -55,6 +58,10 @@ func NewRegister(blackListed []string) (map[string]*EventTracingAttr, error) {
 
 			attr, err = factory()
 			if err != nil {
+				if errors.Is(err, types.ErrNotSupported) {
+					continue
+				}
+
 				err = fmt.Errorf("traing name: %s, err: [%w]", name, err)
 				return
 			}
