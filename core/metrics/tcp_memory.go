@@ -17,28 +17,23 @@ package collector
 import (
 	"fmt"
 
-	"huatuo-bamai/internal/log"
 	"huatuo-bamai/internal/procfs"
 	"huatuo-bamai/pkg/metric"
 	"huatuo-bamai/pkg/tracing"
 )
 
-const (
-	skMemQuantum = 4096
-)
-
 type tcpMemCollector struct {
-	tcpMemMetric []*metric.Data
+	data []*metric.Data
 }
 
 func init() {
-	tracing.RegisterEventTracing("tcp_mem", newTCPMemCollector)
+	tracing.RegisterEventTracing("tcp_memory", newTcpMemory)
 }
 
-func newTCPMemCollector() (*tracing.EventTracingAttr, error) {
+func newTcpMemory() (*tracing.EventTracingAttr, error) {
 	return &tracing.EventTracingAttr{
 		TracingData: &tcpMemCollector{
-			tcpMemMetric: []*metric.Data{
+			data: []*metric.Data{
 				metric.NewGaugeData("usage_pages", 0, "tcp mem usage(pages)", nil),
 				metric.NewGaugeData("usage_bytes", 0, "tcp mem usage(bytes)", nil),
 				metric.NewGaugeData("limit_pages", 0, "tcp mem limit(pages)", nil),
@@ -49,25 +44,26 @@ func newTCPMemCollector() (*tracing.EventTracingAttr, error) {
 	}, nil
 }
 
-func (c *tcpMemCollector) getTCPMem() (tcpMem, tcpMemBytes, tcpMemLimit float64, err error) {
+type tcpMemoryStat struct {
+	memoryPages float64
+	memoryBytes float64
+	memoryLimit float64
+}
+
+func parseTcpMemory() (*tcpMemoryStat, error) {
 	fs, err := procfs.NewDefaultFS()
 	if err != nil {
-		log.Infof("failed to open sysfs: %v", err)
-		return -1, -1, -1, err
+		return nil, err
 	}
 
 	values, err := fs.SysctlInts("net.ipv4.tcp_mem")
 	if err != nil {
-		log.Infof("error obtaining sysctl info: %v", err)
-		return -1, -1, -1, err
+		return nil, err
 	}
-
-	tcpMemLimit = float64(values[2])
 
 	stat4, err := fs.NetSockstat()
 	if err != nil {
-		log.Infof("failed to get NetSockstat: %v", err)
-		return -1, -1, -1, err
+		return nil, err
 	}
 
 	for _, p := range stat4.Protocols {
@@ -75,27 +71,30 @@ func (c *tcpMemCollector) getTCPMem() (tcpMem, tcpMemBytes, tcpMemLimit float64,
 			continue
 		}
 
-		if p.Mem == nil {
-			return -1, -1, -1, fmt.Errorf("failed to read tcpmem usage")
+		if p.Mem != nil {
+			return &tcpMemoryStat{
+				memoryPages: float64(*p.Mem),
+				memoryBytes: float64(*p.Mem * 4096),
+				memoryLimit: float64(values[2]), // tcpMemLimit
+			}, nil
 		}
 
-		tcpMem = float64(*p.Mem)
-		tcpMemBytes = float64(*p.Mem * skMemQuantum)
+		break
 	}
 
-	return tcpMem, tcpMemBytes, tcpMemLimit, nil
+	return nil, fmt.Errorf("not found")
 }
 
 func (c *tcpMemCollector) Update() ([]*metric.Data, error) {
-	tcpMem, tcpMemBytes, tcpMemLimit, err := c.getTCPMem()
+	stats, err := parseTcpMemory()
 	if err != nil {
 		return nil, err
 	}
 
-	c.tcpMemMetric[0].Value = tcpMem
-	c.tcpMemMetric[1].Value = tcpMemBytes
-	c.tcpMemMetric[2].Value = tcpMemLimit
-	c.tcpMemMetric[3].Value = tcpMem / tcpMemLimit
+	c.data[0].Value = stats.memoryPages
+	c.data[1].Value = stats.memoryBytes
+	c.data[2].Value = stats.memoryLimit
+	c.data[3].Value = stats.memoryPages / stats.memoryLimit
 
-	return c.tcpMemMetric, nil
+	return c.data, nil
 }
