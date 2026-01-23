@@ -21,21 +21,19 @@ import (
 	"strings"
 )
 
-// arpCacheStats contains statistics for all the counters from `/proc/net/stat/arp_cache`
-type arpCacheStats struct {
+// ArpCacheStats contains statistics for all the counters from `/proc/net/stat/arp_cache`
+type ArpCacheStats struct {
 	Stats map[string]uint64
 }
 
-// ARPCacheStats retrieves stats from `/proc/net/stat/arp_cache`,
-// Not available in upstream procfs.
-func ARPCacheStats() (arpCacheStats, error) {
-	netStat := arpCacheStats{
-		Stats: make(map[string]uint64),
-	}
-
+// NetArpCache retrieves stats from `/proc/net/stat/arp_cache`,
+//
+// Not available in prometheus procfs:
+// https://github.com/prometheus/procfs
+func NetArpCache() (*ArpCacheStats, error) {
 	file, err := os.Open(Path("net/stat/arp_cache"))
 	if err != nil {
-		return netStat, err
+		return nil, err
 	}
 	defer file.Close()
 
@@ -47,14 +45,16 @@ func ARPCacheStats() (arpCacheStats, error) {
 	headers = append(headers, strings.Fields(scanner.Text())...)
 
 	// Fast path ...
+	cache := &ArpCacheStats{Stats: make(map[string]uint64)}
+
 	scanner.Scan()
 	for num, counter := range strings.Fields(scanner.Text()) {
 		value, err := strconv.ParseUint(counter, 16, 64)
 		if err != nil {
-			return arpCacheStats{}, err
+			return nil, err
 		}
-		netStat.Stats[headers[num]] = value
+		cache.Stats[headers[num]] = value
 	}
 
-	return netStat, nil
+	return cache, nil
 }

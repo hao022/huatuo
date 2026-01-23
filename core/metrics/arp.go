@@ -49,13 +49,13 @@ func (c *arpCollector) updateHostArp() ([]*metric.Data, error) {
 		return nil, err
 	}
 
-	stat, err := procfs.ARPCacheStats()
+	cache, err := procfs.NetArpCache()
 	if err != nil {
 		return nil, err
 	}
 
 	c.metric[0].Value = float64(count - 1)
-	c.metric[1].Value = float64(stat.Stats["entries"])
+	c.metric[1].Value = float64(cache.Stats["entries"])
 
 	return c.metric, err
 }
