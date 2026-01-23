@@ -16,6 +16,7 @@ package collector
 
 import (
 	"fmt"
+	"strconv"
 
 	"huatuo-bamai/internal/pod"
 	"huatuo-bamai/internal/procfs"
@@ -69,7 +70,7 @@ func (c *arpCollector) Update() ([]*metric.Data, error) {
 	}
 
 	for _, container := range containers {
-		count, err := fileLineCounter(fmt.Sprintf("/proc/%d/net/arp", container.InitPid))
+		count, err := fileLineCounter(procfs.Path(strconv.Itoa(container.InitPid), "net/arp"))
 		if err != nil {
 			return nil, err
 		}
