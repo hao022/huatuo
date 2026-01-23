@@ -152,7 +152,7 @@ func (c *sockstatCollector) procStatMetrics(container *pod.Container) ([]*metric
 		// Also export mem_bytes values for sockets which have a mem value
 		// stored in pages.
 		if p.Mem != nil {
-			v := *p.Mem * skMemQuantum
+			v := *p.Mem * 4096
 			pairs = append(pairs, ssPair{
 				name: "mem_bytes",
 				v:    &v,
