@@ -15,7 +15,6 @@
 package collector
 
 import (
-	"fmt"
 	"strconv"
 
 	"huatuo-bamai/internal/pod"
@@ -44,8 +43,8 @@ func newArp() (*tracing.EventTracingAttr, error) {
 	}, nil
 }
 
-func (c *arpCollector) updateHostArp() ([]*metric.Data, error) {
-	count, err := fileLineCounter(procfs.Path("1/net/arp"))
+func (c *arpCollector) hostArpCacheStat() ([]*metric.Data, error) {
+	count, err := CountLines(procfs.Path("1/net/arp"))
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +56,6 @@ func (c *arpCollector) updateHostArp() ([]*metric.Data, error) {
 
 	c.metric[0].Value = float64(count - 1)
 	c.metric[1].Value = float64(cache.Stats["entries"])
-
 	return c.metric, err
 }
 
@@ -66,11 +64,11 @@ func (c *arpCollector) Update() ([]*metric.Data, error) {
 
 	containers, err := pod.NormalContainers()
 	if err != nil {
-		return nil, fmt.Errorf("GetNormalContainers: %w", err)
+		return nil, err
 	}
 
 	for _, container := range containers {
-		count, err := fileLineCounter(procfs.Path(strconv.Itoa(container.InitPid), "net/arp"))
+		count, err := CountLines(procfs.Path(strconv.Itoa(container.InitPid), "net/arp"))
 		if err != nil {
 			return nil, err
 		}
@@ -78,7 +76,7 @@ func (c *arpCollector) Update() ([]*metric.Data, error) {
 		data = append(data, metric.NewContainerGaugeData(container, "entries", float64(count-1), "arp for container and host", nil))
 	}
 
-	hostMetrics, err := c.updateHostArp()
+	hostMetrics, err := c.hostArpCacheStat()
 	if err != nil {
 		return nil, err
 	}

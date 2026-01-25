@@ -15,35 +15,25 @@
 package collector
 
 import (
-	"bytes"
-	"io"
+	"bufio"
 	"os"
 )
 
-func fileLineCounter(filePath string) (int, error) {
-	count := 0
-	buf := make([]byte, 8*20*4096)
-
-	file, err := os.Open(filePath)
+func CountLines(path string) (int64, error) {
+	f, err := os.Open(path)
 	if err != nil {
-		return count, err
+		return 0, err
 	}
-	defer file.Close()
+	defer f.Close()
 
-	r := io.Reader(file)
+	var count int64
+	scanner := bufio.NewScanner(f)
 
-	for {
-		c, err := r.Read(buf)
-		count += bytes.Count(buf[:c], []byte("\n"))
+	// scanner.Buffer(make([]byte, 256*1024), 512*1024)
 
-		if err == io.EOF {
-			break
-		}
-
-		if err != nil {
-			return count, err
-		}
+	for scanner.Scan() {
+		count++
 	}
 
-	return count, nil
+	return count, scanner.Err()
 }
