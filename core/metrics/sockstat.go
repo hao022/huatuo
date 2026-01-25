@@ -79,7 +79,7 @@ func (c *sockstatCollector) procStatMetrics(container *pod.Container) ([]*metric
 	}
 
 	// NOTE: non-standard using procfs.NewFS.
-	fs, err := procfs.NewFS(filepath.Join(procfs.DefaultProcMountPoint, strconv.Itoa(pid)))
+	fs, err := procfs.NewFS(filepath.Join(procfs.DefaultPath(), strconv.Itoa(pid)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to open procfs: %w", err)
 	}

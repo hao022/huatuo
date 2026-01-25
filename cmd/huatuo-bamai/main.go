@@ -257,16 +257,8 @@ func main() {
 			Usage: "for loading tests, exit gracefully",
 		},
 		&cli.StringFlag{
-			Name:  "procfs",
-			Usage: "procfs mountpoint",
-		},
-		&cli.StringFlag{
-			Name:  "sysfs",
-			Usage: "sysfs mountpoint",
-		},
-		&cli.StringFlag{
-			Name:  "dev",
-			Usage: "dev mountpoint",
+			Name:  "procfs-prefix",
+			Usage: "procfs prefix for default mountpoint e.g. /proc /sys and /dev",
 		},
 	}
 
@@ -310,14 +302,8 @@ func main() {
 		}
 
 		// mountpoint (test only)
-		if ctx.String("procfs") != "" {
-			procfs.DefaultProcMountPoint = ctx.String("procfs")
-		}
-		if ctx.String("sysfs") != "" {
-			procfs.DefaultSysMountPoint = ctx.String("sysfs")
-		}
-		if ctx.String("dev") != "" {
-			procfs.DefaultDevMountPoint = ctx.String("dev")
+		if ctx.String("procfs-prefix") != "" {
+			procfs.RootPrefix(ctx.String("procfs-prefix"))
 		}
 
 		if ctx.Bool("log-debug") {

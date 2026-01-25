@@ -29,11 +29,17 @@ type (
 
 // NewDefaultFS returns a new proc FS using runtime-initialized mount points.
 func NewDefaultFS() (FS, error) {
-	return sysfs.NewFS(procfs.DefaultSysMountPoint)
+	return sysfs.NewFS(DefaultPath())
 }
 
+// DefaultPath returns the default proc path, e.g. "/sys".
+func DefaultPath() string {
+	return procfs.DefaultPathByType("sys")
+}
+
+// Path returns a new path with default prefix, e.g. "/sys/[p].
 func Path(p ...string) string {
-	fs := procfs.DefaultSysMountPoint
+	fs := DefaultPath()
 
 	return filepath.Join(append([]string{fs}, p...)...)
 }

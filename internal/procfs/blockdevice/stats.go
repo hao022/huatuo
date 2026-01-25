@@ -27,5 +27,8 @@ type (
 
 // NewDefaultFS returns a new proc FS using runtime-initialized mount points.
 func NewDefaultFS() (FS, error) {
-	return blockdevice.NewFS(procfs.DefaultProcMountPoint, procfs.DefaultSysMountPoint)
+	return blockdevice.NewFS(
+		procfs.DefaultPathByType("proc"),
+		procfs.DefaultPathByType("sys"),
+	)
 }

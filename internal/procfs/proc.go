@@ -19,7 +19,7 @@ import "github.com/prometheus/procfs"
 type Proc = procfs.Proc
 
 func Self() (procfs.Proc, error) {
-	fs, err := NewFS(DefaultProcMountPoint)
+	fs, err := NewFS(defaultProcMountPoint)
 	if err != nil {
 		return procfs.Proc{}, err
 	}
@@ -28,7 +28,7 @@ func Self() (procfs.Proc, error) {
 
 // NewProc returns a process for the given pid under /proc.
 func NewProc(pid int) (procfs.Proc, error) {
-	fs, err := NewFS(DefaultProcMountPoint)
+	fs, err := NewFS(defaultProcMountPoint)
 	if err != nil {
 		return procfs.Proc{}, err
 	}
