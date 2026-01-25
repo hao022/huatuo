@@ -1,6 +1,6 @@
 module huatuo-bamai
 
-go 1.23.0
+go 1.24.0
 
 require (
 	github.com/cilium/ebpf v0.16.0
@@ -23,14 +23,14 @@ require (
 	github.com/pelletier/go-toml v1.9.5
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.21.0-rc.0
-	github.com/prometheus/procfs v0.15.1
+	github.com/prometheus/procfs v0.19.2
 	github.com/safchain/ethtool v0.6.2
 	github.com/shirou/gopsutil v2.21.11+incompatible
 	github.com/sirupsen/logrus v1.9.3
 	github.com/tklauser/numcpus v0.6.1
 	github.com/urfave/cli/v2 v2.27.4
 	github.com/vishvananda/netlink v1.3.1
-	golang.org/x/sys v0.34.0
+	golang.org/x/sys v0.37.0
 	golang.org/x/time v0.9.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	k8s.io/api v0.31.3
@@ -173,7 +173,7 @@ require (
 	golang.org/x/mod v0.24.0 // indirect
 	golang.org/x/net v0.40.0 // indirect
 	golang.org/x/oauth2 v0.27.0 // indirect
-	golang.org/x/sync v0.14.0 // indirect
+	golang.org/x/sync v0.17.0 // indirect
 	golang.org/x/text v0.25.0 // indirect
 	golang.org/x/tools v0.32.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect

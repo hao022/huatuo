@@ -35,7 +35,12 @@ func newMountPointStat() (*tracing.EventTracingAttr, error) {
 }
 
 func (c *mountPointStatCollector) Update() ([]*metric.Data, error) {
-	mountinfo, err := procfs.GetMounts()
+	fs, err := procfs.NewDefaultFS()
+	if err != nil {
+		return nil, err
+	}
+
+	mountinfo, err := fs.GetMounts()
 	if err != nil {
 		return nil, err
 	}
