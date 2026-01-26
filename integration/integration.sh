@@ -14,42 +14,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -o errexit
-set -o nounset
-set -o pipefail
+set -euo pipefail
 
-BASEDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export BASEDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${BASEDIR}/utils.sh"
 
-# Always kill the huatuo-bamai process.
-trap test_teardown EXIT
+# Always cleanup the tests.
+trap 'test_teardown $?' EXIT
 
-# Run the core integration test flow.
+# Run the core integration tests.
 test_run() {
-	test_setup
-	test_metrics
+	unshare --uts --mount bash -c '
+		mount --make-rprivate /
+		echo "huatuo-dev" > /proc/sys/kernel/hostname
+		hostname huatuo-dev 2>/dev/null || true
+
+		source "${BASEDIR}/utils.sh"
+		test_setup
+		test_metrics
+		# more tests ...
+	'
 }
 
 # Run integration test and preserve exit code even under `set -e`.
-test_run && test_exit_code=$? || test_exit_code=$?
-
-# Dump bamai metrics on failure to aid debugging.
-if [ "${test_exit_code}" -ne 0 ]; then
-	log_info "
-========== HUATUO-BAMAI INTEGRATION TEST FAILED ==========
-
-Summary:
-  - One or more expected metrics are missing.
-
-Temporary artifacts preserved at:
-  ${TMPDIR}
-
-Key files:
-  - metrics.txt
-  - huatuo.log
-
-=========================================================
-"
-fi
-
-exit "${test_exit_code}"
+test_run

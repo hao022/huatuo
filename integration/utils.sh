@@ -15,59 +15,75 @@
 # limitations under the License.
 
 # Root of the project repository.
-ROOT="$(cd "${BASEDIR}/.." && pwd)"
+ROOT=$(cd ${BASEDIR}/.. && pwd)
 
-# Path to huatuo-bamai binary under test.
-BIN="${ROOT}/_output/bin/huatuo-bamai"
-PID="/var/run/huatuo-bamai.pid"
-
-# Temporary directory for logs and runtime artifacts.
-TMPDIR="$(mktemp -d /tmp/huatuo-integration-test.XXXXXX)"
-
-# Test fixtures and expected outputs.
-FIXTURES="${ROOT}/integration/fixtures"
-EXPECTED_DIR="${ROOT}/integration/fixtures/expected_metrics"
+HUATUO_BAMAI_BIN="${ROOT}/_output/bin/huatuo-bamai"
+HUATUO_BAMAI_PIDFILE="/var/run/huatuo-bamai.pid"
+HUATUO_TEST_TMPDIR=$(mktemp -d /tmp/huatuo-integration-test.XXXXXX)
+HUATUO_TEST_FIXTURES="${ROOT}/integration/fixtures"
+HUATUO_TEST_EXPECTED="${ROOT}/integration/fixtures/expected_metrics"
 
 # Start the huatuo-bamai service used for integration testing.
 test_setup() {
-	# Verify that required binaries and test data exist before running tests.
-	[[ -x "${BIN}" ]] || fatal "binary not found: ${BIN}"
-	[[ -d "${EXPECTED_DIR}" ]] || fatal "expected_metrics directory not found"
+	[[ -x ${HUATUO_BAMAI_BIN} ]] || fatal "binary not found: ${HUATUO_BAMAI_BIN}"
+	[[ -d ${HUATUO_TEST_EXPECTED} ]] || fatal "expected metrics directory not found"
 
 	log_info "starting huatuo-bamai (mock fixture fs)"
 
-	generate_bamai_config
+	bamai_config
 
 	log_info "launching huatuo-bamai..."
 
-	"${BIN}" \
-		--config-dir "${TMPDIR}" \
+	${HUATUO_BAMAI_BIN} \
+		--config-dir ${HUATUO_TEST_TMPDIR} \
 		--config bamai.conf \
-		--region "huatuo-test" \
-		--sysfs "${FIXTURES}/sys" \
-		--procfs "${FIXTURES}/proc" \
-		--dev "${FIXTURES}/dev" \
+		--region "dev" \
+		--procfs-prefix ${HUATUO_TEST_FIXTURES} \
 		--disable-kubelet \
 		--disable-storage \
-		>"${TMPDIR}/huatuo.log" 2>&1 &
+		>${HUATUO_TEST_TMPDIR}/huatuo.log 2>&1 &
 
-	local pid
-	pid="$(cat "${PID}")"
+	sleep 1s
 
-	log_info "huatuo-bamai started, pid=${pid}"
+	log_info "huatuo-bamai started, pid=$(cat ${HUATUO_BAMAI_PIDFILE})"
 }
 
-# Entry point that orchestrates the full integration metrics test flow.
+test_teardown() {
+	local exit_code=$1
+
+	kill -9 $(cat ${HUATUO_BAMAI_PIDFILE} 2>/dev/null) 2>/dev/null || true
+
+	# Print details on failure
+	if [ "${exit_code}" -ne 0 ]; then
+		log_info "the exit code: $exit_code"
+		log_info "
+========== HUATUO INTEGRATION TEST FAILED ================
+
+Summary:
+  - One or more expected metrics are missing.
+
+Temporary artifacts preserved at:
+  ${HUATUO_TEST_TMPDIR}
+
+Key files:
+  - metrics.txt
+  - huatuo.log
+  - bamai.conf
+
+=========================================================
+"
+	fi
+}
+
 test_metrics() {
-	wait_for_metrics_ready
-	fetch_prometheus_metrics
-	assert_all_expected_metrics
+	wait_and_fetch_metrics
+	check_procfs_metrics
+	# ...
 }
 
-# Wait until the Prometheus metrics endpoint becomes available.
-wait_for_metrics_ready() {
+wait_and_fetch_metrics() {
 	for _ in {1..20}; do
-		if curl -sf "http://127.0.0.1:19704/metrics" >/dev/null; then
+		if curl -sf "localhost:19704/metrics" >"${HUATUO_TEST_TMPDIR}/metrics.txt"; then
 			return 0
 		fi
 		sleep 0.5
@@ -76,63 +92,50 @@ wait_for_metrics_ready() {
 	fatal "metrics endpoint not ready"
 }
 
-# Fetch Prometheus metrics from the running service.
-fetch_prometheus_metrics() {
-	curl -s "http://127.0.0.1:19704/metrics" >"${TMPDIR}/metrics.txt"
-}
-
-# Verify that all metrics defined in the expected file exist.
-assert_metrics_from_file() {
-	local expected_file="$1"
-
-	missing_metrics=$(
-		grep -v '^[[:space:]]*\(#\|$\)' "${expected_file}" |
-			grep -Fv -f "${TMPDIR}/metrics.txt" || true
-	)
-
-	if [[ -z "${missing_metrics}" ]]; then
-		log_info "all metrics found in $(basename "${expected_file}")"
-		return 0
-	fi
-
-	fatal $'missing metrics:\n'"${missing_metrics}"
-}
-
 # Verify all expected metric files and dump metrics on success.
-assert_all_expected_metrics() {
-	for f in "${EXPECTED_DIR}"/*.txt; do
+check_procfs_metrics() {
+	for f in "${HUATUO_TEST_EXPECTED}"/*.txt; do
 		prefix="$(basename "$f" .txt)"
 
-		# 1. Assert that metrics defined in the expected file are present.
-		assert_metrics_from_file "${f}" || return 1
+		check_metrics_from_file "${f}"
 
-		# 2. Dump collected Prometheus metrics for this prefix after a successful assertion.
-		log_info "Metrics for prefix: huatuo_bamai_${prefix}"
-		grep "^huatuo_bamai_${prefix}" "${TMPDIR}/metrics.txt" || log_info "(no metrics found)"
+		log_info "metrics prefix: huatuo_bamai_${prefix}"
+		grep "^huatuo_bamai_${prefix}" "${HUATUO_TEST_TMPDIR}/metrics.txt" || log_info "(no metrics found)"
 	done
 }
 
-# Stop and clean up the huatuo-bamai service.
-test_teardown() { kill -9 "$(cat "${PID}")" 2>/dev/null || true; }
+check_metrics_from_file() {
+	local file="$1"
+
+	missing_metrics=$(
+		grep -v '^[[:space:]]*\(#\|$\)' "${file}" |
+			grep -Fv -f "${HUATUO_TEST_TMPDIR}/metrics.txt" || true
+	)
+
+	if [[ -z "${missing_metrics}" ]]; then
+		return
+	fi
+
+	log_info "the missing metrics:"
+	log_info "${missing_metrics}"
+	log_info "the metrics file ${HUATUO_TEST_TMPDIR}/metrics.txt:"
+	log_info "$(cat ${HUATUO_TEST_TMPDIR}/metrics.txt)"
+	exit 1
+}
 
 # Generate bamai config used by integration tests.
-generate_bamai_config() {
-	log_info "generating bamai config"
-
-	# Base config (without blacklist)
-	cat >"${TMPDIR}/bamai.conf" <<'EOF'
+bamai_config() {
+	cat >"${HUATUO_TEST_TMPDIR}/bamai.conf" <<'EOF'
 # the blacklist for tracing and metrics
 BlackList = ["softlockup", "ethtool", "netstat_hw", "iolatency", "memory_free", "memory_reclaim", "reschedipi", "softirq"]
 EOF
 }
 
-# Print informational messages for integration tests.
 log_info() {
 	echo "[INTEGRATION TEST] $*"
 }
 
-# Print an error message and terminate the test immediately.
 fatal() {
 	echo "[INTEGRATION TEST][FAIL] $*" >&2
-	return 1
+	exit 1
 }
