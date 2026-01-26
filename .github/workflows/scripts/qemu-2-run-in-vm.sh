@@ -6,8 +6,8 @@ echo -e "\n==================== SYSTEM INFORMATION ====================\n"
 echo -e "------- OS Information:"
 uname -a
 if [ -f /etc/os-release ]; then
-  echo -e "\n/etc/os-release contents:"
-  cat /etc/os-release
+	echo -e "\n/etc/os-release contents:"
+	cat /etc/os-release
 fi
 
 echo -e "\n------- PATH Environment Variable:"
@@ -31,21 +31,21 @@ df -h
 echo -e "\n==================== TOOLCHAIN INFORMATION ====================\n"
 
 echo -e "------- Go Environment:"
-if command -v go &> /dev/null; then
-  go version
-  echo -e "\nGo environment variables:"
-  go env | grep -E "^(GO|GOROOT|GOPATH|GOVERSION)"
+if command -v go &>/dev/null; then
+	go version
+	echo -e "\nGo environment variables:"
+	go env | grep -E "^(GO|GOROOT|GOPATH|GOVERSION)"
 else
-  echo "go: not installed"
+	echo "go: not installed"
 fi
 
 echo -e "\n------- Docker Information:"
-if command -v docker &> /dev/null; then
-  docker version 2>/dev/null || true
-  echo -e "\nDocker system info:"
-  sudo docker info 2>/dev/null || true
+if command -v docker &>/dev/null; then
+	docker version 2>/dev/null || true
+	echo -e "\nDocker system info:"
+	sudo docker info 2>/dev/null || true
 else
-  echo "docker: not installed"
+	echo "docker: not installed"
 fi
 
 echo -e "\n==================== END OF SYSTEM REPORT ====================\n"

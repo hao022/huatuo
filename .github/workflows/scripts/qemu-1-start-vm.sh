@@ -10,17 +10,15 @@ VM_IP=192.168.122.100
 
 # Handle different os distro
 case "$OS_DISTRO" in
-  ubuntu*)
-    u_version=${OS_DISTRO#ubuntu}
-    QCOW2_IMAGE=ubuntu-${u_version}-server-cloudimg-amd64.img
-    ;;
-#   centos*)
-#     # TODO:
-  *)
-    echo "[ERROR] Unsupported OS distro: '$OS_DISTRO'" >&2
-    echo "[ERROR] Supported distros: ubuntu*" >&2
-    exit 1
-    ;;
+ubuntu*)
+	u_version=${OS_DISTRO#ubuntu}
+	QCOW2_IMAGE=ubuntu-${u_version}-server-cloudimg-amd64.img
+	;;
+*)
+	echo "[ERROR] Unsupported OS distro: '$OS_DISTRO'" >&2
+	echo "[ERROR] Supported distros: ubuntu*" >&2
+	exit 1
+	;;
 esac
 
 # Create ssh key pair for passwordless login
@@ -29,7 +27,7 @@ ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -q -N ""
 HOST_PUBKEY=$(cat ~/.ssh/id_ed25519.pub)
 
 # Create cloud-init user-data
-cat <<EOF > ${CLOUD_USER_DATA}
+cat <<EOF >${CLOUD_USER_DATA}
 #cloud-config
 
 hostname: $OS_DISTRO
@@ -66,23 +64,23 @@ sudo chown libvirt-qemu:kvm ${LIBVIRT_IMAGE_DIR}/${QCOW2_IMAGE}
 
 # Bind mac address to vm ip
 sudo virsh net-update default add ip-dhcp-host \
-    "<host mac='4A:6F:6C:69:6E:2E' ip='${VM_IP}'/>" --live --config
+	"<host mac='4A:6F:6C:69:6E:2E' ip='${VM_IP}'/>" --live --config
 echo " ${VM_IP} ${VM_NAME}" | sudo tee -a /etc/hosts
 
 # Install VM
 sudo virt-install \
-  --os-variant $OS_DISTRO \
-  --name ${VM_NAME} \
-  --cpu host-passthrough \
-  --virt-type=kvm --hvm \
-  --vcpus=4,sockets=1 \
-  --memory $((4*1024)) \
-  --memballoon model=virtio \
-  --cloud-init user-data=${CLOUD_USER_DATA} \
-  --graphics none \
-  --network network=default,model=virtio,mac='4A:6F:6C:69:6E:2E' \
-  --disk ${LIBVIRT_IMAGE_DIR}/${QCOW2_IMAGE},bus=virtio,cache=none,format=qcow2 \
-  --import --noautoconsole >/dev/null
+	--os-variant $OS_DISTRO \
+	--name ${VM_NAME} \
+	--cpu host-passthrough \
+	--virt-type=kvm --hvm \
+	--vcpus=4,sockets=1 \
+	--memory $((4 * 1024)) \
+	--memballoon model=virtio \
+	--cloud-init user-data=${CLOUD_USER_DATA} \
+	--graphics none \
+	--network network=default,model=virtio,mac='4A:6F:6C:69:6E:2E' \
+	--disk ${LIBVIRT_IMAGE_DIR}/${QCOW2_IMAGE},bus=virtio,cache=none,format=qcow2 \
+	--import --noautoconsole >/dev/null
 
 # Wait for vm to be ready
 set +e
@@ -90,13 +88,13 @@ WAIT_VM_OK_TIMEOUT=600 # seconds
 VM_IS_READY=0
 SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=1"
 for i in $(seq 1 ${WAIT_VM_OK_TIMEOUT}); do
-  ssh 2>/dev/null ${SSH_OPTS} root@${VM_IP} "uname --all" && VM_IS_READY=1 && break
-  echo "waiting for vm to be ready $i/${WAIT_VM_OK_TIMEOUT}s"
-  sleep 1
+	ssh 2>/dev/null ${SSH_OPTS} root@${VM_IP} "uname --all" && VM_IS_READY=1 && break
+	echo "waiting for vm to be ready $i/${WAIT_VM_OK_TIMEOUT}s"
+	sleep 1
 done
 if [ "$VM_IS_READY" -ne 1 ]; then
-  echo -e "\033[1;31m vm ${VM_NAME} is not ready after $WAIT_VM_OK_TIMEOUT seconds \033[0m"
-  exit 1
+	echo -e "\033[1;31m vm ${VM_NAME} is not ready after $WAIT_VM_OK_TIMEOUT seconds \033[0m"
+	exit 1
 fi
 
 # VM is ready

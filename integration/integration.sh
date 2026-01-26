@@ -26,8 +26,8 @@ trap test_teardown EXIT
 
 # Run the core integration test flow.
 test_run() {
-  test_setup
-  test_metrics
+	test_setup
+	test_metrics
 }
 
 # Run integration test and preserve exit code even under `set -e`.
@@ -35,7 +35,7 @@ test_run && test_exit_code=$? || test_exit_code=$?
 
 # Dump bamai metrics on failure to aid debugging.
 if [ "${test_exit_code}" -ne 0 ]; then
-  log_info "
+	log_info "
 ========== HUATUO-BAMAI INTEGRATION TEST FAILED ==========
 
 Summary:
@@ -53,4 +53,3 @@ Key files:
 fi
 
 exit "${test_exit_code}"
-
