@@ -73,7 +73,7 @@ func (c *sockstatCollector) Update() ([]*metric.Data, error) {
 }
 
 func (c *sockstatCollector) procStatMetrics(container *pod.Container) ([]*metric.Data, error) {
-	pid := 1 // host
+	pid := 1
 	if container != nil {
 		pid = container.InitPid
 	}
@@ -81,7 +81,7 @@ func (c *sockstatCollector) procStatMetrics(container *pod.Container) ([]*metric
 	// NOTE: non-standard using procfs.NewFS.
 	fs, err := procfs.NewFS(filepath.Join(procfs.DefaultPath(), strconv.Itoa(pid)))
 	if err != nil {
-		return nil, fmt.Errorf("failed to open procfs: %w", err)
+		return nil, err
 	}
 
 	// If IPv4 and/or IPv6 are disabled on this kernel, handle it gracefully.
@@ -91,7 +91,7 @@ func (c *sockstatCollector) procStatMetrics(container *pod.Container) ([]*metric
 	case errors.Is(err, os.ErrNotExist):
 		log.Debug("IPv4 sockstat statistics not found, skipping")
 	default:
-		return nil, fmt.Errorf("failed to get IPv4 sockstat data: %w", err)
+		return nil, err
 	}
 
 	if stat == nil { // nothing to do.
