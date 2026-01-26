@@ -49,6 +49,7 @@ imports:
 fmt:
 	@gofumpt -l -w $(GO_FILES);
 	@gofmt -w -r 'interface{} -> any' $(GO_FILES)
+	@find . -name "*.sh" -not -path "./vendor/*" -exec shfmt -i 0 -w {} \;
 
 golangci-lint: mock-build
 	@golangci-lint run -v ./... --timeout=5m --config .golangci.yaml
