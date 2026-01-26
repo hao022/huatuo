@@ -20,9 +20,9 @@ GO_BUILD_STATIC_WITH_VERSION := $(GO_BUILD_STATIC) -ldflags "-extldflags -static
 
 IMAGE_LATEST := huatuo/huatuo-bamai:latest
 
-all: gen sync build
+all: bpf-build sync build
 
-gen:
+bpf-build:
 	@BPF_DIR=$(BPF_DIR) BPF_COMPILE=$(BPF_COMPILE) BPF_INCLUDE=$(BPF_INCLUDE) go generate -run "BPF_COMPILE" -x ./...
 
 sync:
@@ -50,7 +50,7 @@ fmt:
 	@gofumpt -l -w $(GO_FILES);
 	@gofmt -w -r 'interface{} -> any' $(GO_FILES)
 
-golangci-lint:
+golangci-lint: mock-build
 	@golangci-lint run -v ./... --timeout=5m --config .golangci.yaml
 
 vendor:
@@ -59,9 +59,12 @@ vendor:
 clean:
 	@rm -rf _output $(shell find . -type f -name "*.o")
 
-integration:
+mock-build:
+	@go generate -run "mockery.*" -x ./...
+
+integration: all mock-build
 	@bash integration/integration.sh
 
 force:;
 
-.PHONY: all gen sync build check imports fmt golangci-lint vendor clean integration force docker-build docker-clean
+.PHONY: all bpf-build mock-build sync build check imports fmt golangci-lint vendor clean integration force docker-build docker-clean
