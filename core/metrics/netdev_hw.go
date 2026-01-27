@@ -28,7 +28,6 @@ import (
 	"huatuo-bamai/internal/log"
 	"huatuo-bamai/internal/procfs/sysfs"
 	"huatuo-bamai/internal/utils/parseutil"
-	"huatuo-bamai/internal/utils/sysfsutil"
 	"huatuo-bamai/pkg/metric"
 	"huatuo-bamai/pkg/tracing"
 
@@ -53,7 +52,7 @@ func init() {
 }
 
 func newNetdevHw() (*tracing.EventTracingAttr, error) {
-	interfaces, err := sysfsutil.DefaultNetClassDevices()
+	interfaces, err := sysfs.DefaultNetClassDevices()
 	if err != nil {
 		return nil, err
 	}
