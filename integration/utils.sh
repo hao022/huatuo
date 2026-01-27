@@ -99,7 +99,7 @@ check_procfs_metrics() {
 
 		check_metrics_from_file "${f}"
 
-		log_info "metrics prefix: huatuo_bamai_${prefix}"
+		log_info "metric prefix ok: huatuo_bamai_${prefix}"
 		grep "^huatuo_bamai_${prefix}" "${HUATUO_TEST_TMPDIR}/metrics.txt" || log_info "(no metrics found)"
 	done
 }
@@ -109,7 +109,7 @@ check_metrics_from_file() {
 
 	missing_metrics=$(
 		grep -v '^[[:space:]]*\(#\|$\)' "${file}" |
-			grep -Fv -f "${HUATUO_TEST_TMPDIR}/metrics.txt" || true
+			grep -Fvw -f "${HUATUO_TEST_TMPDIR}/metrics.txt" || true
 	)
 
 	if [[ -z "${missing_metrics}" ]]; then
