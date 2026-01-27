@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"sync/atomic"
 
 	"huatuo-bamai/internal/bpf"
 	"huatuo-bamai/pkg/metric"
@@ -26,18 +27,12 @@ import (
 )
 
 func init() {
-	tracing.RegisterEventTracing("memory_free", newMemoryHost)
+	tracing.RegisterEventTracing("memory_free", newReclaimCompact)
 }
 
-func newMemoryHost() (*tracing.EventTracingAttr, error) {
-	mm := &memoryHost{
-		metrics: []*metric.Data{
-			metric.NewGaugeData("compaction", 0, "time elapsed in memory compaction", nil),
-			metric.NewGaugeData("allocstall", 0, "time elapsed in memory allocstall", nil),
-		},
-	}
+func newReclaimCompact() (*tracing.EventTracingAttr, error) {
 	return &tracing.EventTracingAttr{
-		TracingData: mm,
+		TracingData: &reclaimCompact{},
 		Interval:    10,
 		Flag:        tracing.FlagTracing | tracing.FlagMetric,
 	}, nil
@@ -45,21 +40,20 @@ func newMemoryHost() (*tracing.EventTracingAttr, error) {
 
 //go:generate $BPF_COMPILE $BPF_INCLUDE -s $BPF_DIR/memory_free_compact.c -o $BPF_DIR/memory_free_compact.o
 
-type memoryHost struct {
-	metrics  []*metric.Data
-	bpf      bpf.BPF
-	isRuning bool
+type reclaimCompact struct {
+	bpf     bpf.BPF
+	running atomic.Bool
 }
 
-type memoryHostMetric struct {
-	/* host: compaction latency */
-	CompactionStat uint64
-	/* host: page alloc latency in direct reclaim */
-	AllocstallStat uint64
+type memoryLatency struct {
+	/* the host latency counters of compaction and alloc pages in direct relaim. */
+	CompactionStall uint64
+	AllocPagesStall uint64
+	// FIXME: support cgroups v1/v2
 }
 
-func (c *memoryHost) Update() ([]*metric.Data, error) {
-	if !c.isRuning {
+func (c *reclaimCompact) Update() ([]*metric.Data, error) {
+	if !c.running.Load() {
 		return nil, nil
 	}
 
@@ -68,42 +62,50 @@ func (c *memoryHost) Update() ([]*metric.Data, error) {
 		return nil, fmt.Errorf("dump map mm_free_compact_map: %w", err)
 	}
 
-	if len(items) == 0 {
-		c.metrics[0].Value = float64(0)
-		c.metrics[1].Value = float64(0)
-	} else {
-		mmMetric := memoryHostMetric{}
+	var (
+		compaction float64
+		allocPages float64
+	)
+
+	if len(items) != 0 {
+		mm := memoryLatency{}
 		buf := bytes.NewReader(items[0].Value)
-		err := binary.Read(buf, binary.LittleEndian, &mmMetric)
-		if err != nil {
-			return nil, fmt.Errorf("read mem_cgroup_map: %w", err)
+		if err := binary.Read(buf, binary.LittleEndian, &mm); err != nil {
+			return nil, err
 		}
-		c.metrics[0].Value = float64(mmMetric.CompactionStat) / 1000 / 1000
-		c.metrics[1].Value = float64(mmMetric.AllocstallStat) / 1000 / 1000
+
+		compaction = float64(mm.CompactionStall) / 1000 / 1000
+		allocPages = float64(mm.AllocPagesStall) / 1000 / 1000
 	}
-	return c.metrics, nil
+
+	return []*metric.Data{
+		metric.NewGaugeData("compaction_stall", compaction, "time stalled in memory compaction", nil),
+		metric.NewGaugeData("allocpages_stall", allocPages, "time stalled in alloc pages", nil),
+	}, nil
 }
 
-// Start detect work, load bpf and wait data form perfevent
-func (c *memoryHost) Start(ctx context.Context) error {
-	var err error
-	c.bpf, err = bpf.LoadBpf(bpf.ThisBpfOBJ(), nil)
+// Start detect work, load bpf and wait data
+func (c *reclaimCompact) Start(ctx context.Context) error {
+	obj, err := bpf.LoadBpf(bpf.ThisBpfOBJ(), nil)
 	if err != nil {
-		return fmt.Errorf("load bpf: %w", err)
+		return err
 	}
-	defer c.bpf.Close()
+	defer obj.Close()
 
-	if err = c.bpf.Attach(); err != nil {
-		return fmt.Errorf("attach: %w", err)
+	if err := obj.Attach(); err != nil {
+		return err
 	}
 
 	childCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	c.bpf.WaitDetachByBreaker(childCtx, cancel)
+	obj.WaitDetachByBreaker(childCtx, cancel)
 
-	c.isRuning = true
+	c.bpf = obj
+	c.running.Store(true)
+
+	// wait stop
 	<-childCtx.Done()
-	c.isRuning = false
+	c.running.Store(false)
 	return nil
 }
