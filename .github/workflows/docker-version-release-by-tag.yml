@@ -1,8 +1,10 @@
-name: build and release project
+name: build and release version
+
 on:
   push:
     tags:
       - "v*.*.*"
+
 jobs:
   release-x:
     runs-on: ubuntu-latest
@@ -48,14 +50,13 @@ jobs:
             tree $tmpdir
             tar zcf ${tmpdir}.tar.gz ${tmpdir}
           done
-
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
           draft: false
           generate_release_notes: true
-          token: ${{ secrets.HUATUO_RELEASE_TOKEN }}
           fail_on_unmatched_files: true
+          token: ${{ secrets.HUATUO_RELEASE_TOKEN }}
           body_path: docs/CHANGELOG/CHANGELOG-${{ github.ref_name }}.md
           files: |
             huatuo-${{ github.ref_name }}-linux-*.tar.gz
