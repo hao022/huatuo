@@ -25,47 +25,38 @@ import (
 	"github.com/google/cadvisor/utils/cpuload/netlink"
 )
 
-type loadavgCollector struct {
-	loadAvg []*metric.Data
-}
+type loadavgCollector struct{}
 
 func init() {
 	tracing.RegisterEventTracing("loadavg", newLoadavg)
 }
 
-// NewLoadavgCollector returns a new Collector exposing load average stats.
+// newLoadavg returns a new Collector exposing load average stats.
 func newLoadavg() (*tracing.EventTracingAttr, error) {
-	collector := &loadavgCollector{
-		// Load average of last 1, 5 & 15 minutes.
-		// See linux kernel Documentation/filesystems/proc.rst
-		loadAvg: []*metric.Data{
-			metric.NewGaugeData("load1", 0, "1m load average", nil),
-			metric.NewGaugeData("load5", 0, "5m load average", nil),
-			metric.NewGaugeData("load15", 0, "15m load average", nil),
-		},
-	}
-
 	return &tracing.EventTracingAttr{
-		TracingData: collector, Flag: tracing.FlagMetric,
+		TracingData: &loadavgCollector{},
+		Flag:        tracing.FlagMetric,
 	}, nil
 }
 
-// Read loadavg from /proc.
-func (c *loadavgCollector) hostLoadAvg() error {
+// Load average of last 1, 5, 15 minutes.
+// See linux kernel Documentation/filesystems/proc.rst
+func nodeLoadAvg() ([]*metric.Data, error) {
 	fs, err := procfs.NewDefaultFS()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	load, err := fs.LoadAvg()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	c.loadAvg[0].Value = load.Load1
-	c.loadAvg[1].Value = load.Load5
-	c.loadAvg[2].Value = load.Load15
-	return nil
+	return []*metric.Data{
+		metric.NewGaugeData("load1", load.Load1, "system load average, 1 minute", nil),
+		metric.NewGaugeData("load5", load.Load5, "system load average, 5 minutes", nil),
+		metric.NewGaugeData("load15", load.Load15, "system load average, 15 minutes", nil),
+	}, nil
 }
 
 func containerLoadavg() ([]*metric.Data, error) {
@@ -89,29 +80,28 @@ func containerLoadavg() ([]*metric.Data, error) {
 
 		loadavgs = append(loadavgs,
 			metric.NewContainerGaugeData(container,
-				"nr_running", float64(stats.NrRunning),
-				"nr_running of container", nil),
+				"nr_running", float64(stats.NrRunning), "nr_running of container", nil),
 			metric.NewContainerGaugeData(container,
-				"nr_uninterruptible", float64(stats.NrUninterruptible),
-				"nr_uninterruptible of container", nil))
+				"nr_uninterruptible", float64(stats.NrUninterruptible), "nr_uninterruptible of container", nil))
 	}
 
 	return loadavgs, nil
 }
 
 func (c *loadavgCollector) Update() ([]*metric.Data, error) {
-	loadavgs := []*metric.Data{}
+	var loadavgs []*metric.Data
 
 	if cgroups.CgroupMode() == cgroups.Legacy {
+		// continue for node loadavg if err
 		if containersLoads, err := containerLoadavg(); err == nil {
 			loadavgs = append(loadavgs, containersLoads...)
 		}
 	}
 
-	if err := c.hostLoadAvg(); err != nil {
-		return nil, err
+	data, err := nodeLoadAvg()
+	if err != nil {
+		return loadavgs, err
 	}
 
-	loadavgs = append(loadavgs, c.loadAvg...)
-	return loadavgs, nil
+	return append(loadavgs, data...), nil
 }
