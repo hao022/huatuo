@@ -23,18 +23,13 @@ source "${BASEDIR}/utils.sh"
 trap 'test_teardown $?' EXIT
 
 # Run the core integration tests.
-test_run() {
-	unshare --uts --mount bash -c '
-		mount --make-rprivate /
-		echo "huatuo-dev" > /proc/sys/kernel/hostname
-		hostname huatuo-dev 2>/dev/null || true
+unshare --uts --mount bash -c '
+	mount --make-rprivate /
+	echo "huatuo-dev" > /proc/sys/kernel/hostname
+	hostname huatuo-dev 2>/dev/null || true
 
-		source "${BASEDIR}/utils.sh"
-		test_setup
-		test_metrics
-		# more tests ...
+	source "${BASEDIR}/utils.sh"
+	test_setup
+	test_metrics
+	# more tests ...
 	'
-}
-
-# Run integration test and preserve exit code even under `set -e`.
-test_run
