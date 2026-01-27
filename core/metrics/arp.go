@@ -23,9 +23,7 @@ import (
 	"huatuo-bamai/pkg/tracing"
 )
 
-type arpCollector struct {
-	metric []*metric.Data
-}
+type arpCollector struct{}
 
 func init() {
 	tracing.RegisterEventTracing("arp", newArp)
@@ -33,17 +31,12 @@ func init() {
 
 func newArp() (*tracing.EventTracingAttr, error) {
 	return &tracing.EventTracingAttr{
-		TracingData: &arpCollector{
-			metric: []*metric.Data{
-				metric.NewGaugeData("entries", 0, "host init namespace", nil),
-				metric.NewGaugeData("total", 0, "arp_cache entries", nil),
-			},
-		},
-		Flag: tracing.FlagMetric,
+		TracingData: &arpCollector{},
+		Flag:        tracing.FlagMetric,
 	}, nil
 }
 
-func (c *arpCollector) hostArpCacheStat() ([]*metric.Data, error) {
+func nodeArpCacheEntries() ([]*metric.Data, error) {
 	count, err := CountLines(procfs.Path("1/net/arp"))
 	if err != nil {
 		return nil, err
@@ -54,13 +47,14 @@ func (c *arpCollector) hostArpCacheStat() ([]*metric.Data, error) {
 		return nil, err
 	}
 
-	c.metric[0].Value = float64(count - 1)
-	c.metric[1].Value = float64(cache.Stats["entries"])
-	return c.metric, err
+	return []*metric.Data{
+		metric.NewGaugeData("entries", float64(count-1), "host init namespace", nil),
+		metric.NewGaugeData("total", float64(cache.Stats["entries"]), "all entries in arp_cache for containers and host netns", nil),
+	}, nil
 }
 
 func (c *arpCollector) Update() ([]*metric.Data, error) {
-	data := []*metric.Data{}
+	var data []*metric.Data
 
 	containers, err := pod.NormalContainers()
 	if err != nil {
@@ -70,16 +64,17 @@ func (c *arpCollector) Update() ([]*metric.Data, error) {
 	for _, container := range containers {
 		count, err := CountLines(procfs.Path(strconv.Itoa(container.InitPid), "net/arp"))
 		if err != nil {
-			return nil, err
+			// return data collected
+			return data, err
 		}
 
-		data = append(data, metric.NewContainerGaugeData(container, "entries", float64(count-1), "arp for container and host", nil))
+		data = append(data, metric.NewContainerGaugeData(container, "entries", float64(count-1), "arp entries in container netns", nil))
 	}
 
-	hostMetrics, err := c.hostArpCacheStat()
+	entries, err := nodeArpCacheEntries()
 	if err != nil {
-		return nil, err
+		return data, err
 	}
 
-	return append(data, hostMetrics...), nil
+	return append(data, entries...), nil
 }
