@@ -25,38 +25,38 @@ import (
 	"huatuo-bamai/pkg/tracing"
 )
 
-type memStatCollector struct {
+type memoryCgroupStat struct {
 	cgroup cgroups.Cgroup
 }
 
 func init() {
-	tracing.RegisterEventTracing("memory_stat", newMemStat)
+	tracing.RegisterEventTracing("memory_stat", newMemoryCgroupStat)
 }
 
-func newMemStat() (*tracing.EventTracingAttr, error) {
+func newMemoryCgroupStat() (*tracing.EventTracingAttr, error) {
 	cgroup, err := cgroups.NewCgroupManager()
 	if err != nil {
 		return nil, err
 	}
 
 	return &tracing.EventTracingAttr{
-		TracingData: &memStatCollector{
+		TracingData: &memoryCgroupStat{
 			cgroup: cgroup,
 		},
 		Flag: tracing.FlagMetric,
 	}, nil
 }
 
-func (c *memStatCollector) Update() ([]*metric.Data, error) {
+func (c *memoryCgroupStat) Update() ([]*metric.Data, error) {
 	filter := newFieldFilter(conf.Get().MetricCollector.MemoryStat.Excluded,
 		conf.Get().MetricCollector.MemoryStat.Included)
 
-	metrics := []*metric.Data{}
 	containers, err := pod.NormalContainers()
 	if err != nil {
 		return nil, err
 	}
 
+	var metrics []*metric.Data
 	for _, container := range containers {
 		raw, err := c.cgroup.MemoryStatRaw(container.CgroupSuffix)
 		if err != nil {
