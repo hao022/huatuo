@@ -14,13 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -euo pipefail
-
 export BASEDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${BASEDIR}/utils.sh"
-
-# Always cleanup the tests.
-trap 'test_teardown $?' EXIT
 
 # Run the core integration tests.
 unshare --uts --mount bash -c '
@@ -28,7 +22,12 @@ unshare --uts --mount bash -c '
 	echo "huatuo-dev" > /proc/sys/kernel/hostname
 	hostname huatuo-dev 2>/dev/null || true
 
+	set -euo pipefail
 	source "${BASEDIR}/utils.sh"
+
+	# Always cleanup the tests.
+	trap "test_teardown \$?" EXIT
+
 	test_setup
 	test_metrics
 	# more tests ...
