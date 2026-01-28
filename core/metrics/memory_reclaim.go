@@ -18,7 +18,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
-	"fmt"
+	"sync/atomic"
 
 	"huatuo-bamai/internal/bpf"
 	"huatuo-bamai/internal/pod"
@@ -27,99 +27,99 @@ import (
 )
 
 func init() {
-	tracing.RegisterEventTracing("memory_reclaim", newMemoryCgroup)
+	tracing.RegisterEventTracing("memory_reclaim", newMemoryCgroupReclaim)
 }
 
-func newMemoryCgroup() (*tracing.EventTracingAttr, error) {
+func newMemoryCgroupReclaim() (*tracing.EventTracingAttr, error) {
 	return &tracing.EventTracingAttr{
-		TracingData: &memoryCgroup{},
+		TracingData: &memoryCgroupReclaim{},
 		Interval:    10,
 		Flag:        tracing.FlagTracing | tracing.FlagMetric,
 	}, nil
 }
 
-type memoryCgroupMetric struct {
+type memoryBpfStruct struct {
 	DirectstallCount uint64
 }
 
 //go:generate $BPF_COMPILE $BPF_INCLUDE -s $BPF_DIR/memory_reclaim.c -o $BPF_DIR/memory_reclaim.o
 
-type memoryCgroup struct {
-	bpf      bpf.BPF
-	isRuning bool
+type memoryCgroupReclaim struct {
+	bpf     bpf.BPF
+	running atomic.Bool
 }
 
-func (c *memoryCgroup) Update() ([]*metric.Data, error) {
-	if !c.isRuning {
+func (c *memoryCgroupReclaim) Update() ([]*metric.Data, error) {
+	if !c.running.Load() {
 		return nil, nil
 	}
 
 	containers, err := pod.NormalContainers()
 	if err != nil {
-		return nil, fmt.Errorf("get container: %w", err)
+		return nil, err
 	}
 
-	containersMap := pod.BuildCssContainers(containers, pod.SubSysMemory)
+	containersCssMem := pod.BuildCssContainers(containers, pod.SubSysMemory)
 
-	items, err := c.bpf.DumpMapByName("mem_cgroup_map")
+	items, err := c.bpf.DumpMapByName("memory_cgroup_allocpages_stall")
 	if err != nil {
-		return nil, fmt.Errorf("dump mem_cgroup_map: %w", err)
+		return nil, err
 	}
 
 	var (
-		cgroupMetric     memoryCgroupMetric
-		containersMetric []*metric.Data
-		css              uint64
+		reclaimVal memoryBpfStruct
+		cssAddr    uint64
+		data       []*metric.Data
 	)
 	for _, v := range items {
 		keyBuf := bytes.NewReader(v.Key)
-		if err := binary.Read(keyBuf, binary.LittleEndian, &css); err != nil {
-			return nil, fmt.Errorf("mem_cgroup_map key: %w", err)
+		if err := binary.Read(keyBuf, binary.LittleEndian, &cssAddr); err != nil {
+			return nil, err
 		}
 
 		valBuf := bytes.NewReader(v.Value)
-		if err := binary.Read(valBuf, binary.LittleEndian, &cgroupMetric); err != nil {
-			return nil, fmt.Errorf("mem_cgroup_map value: %w", err)
+		if err := binary.Read(valBuf, binary.LittleEndian, &reclaimVal); err != nil {
+			return nil, err
 		}
 
-		if container, exist := containersMap[css]; exist {
-			containersMetric = append(containersMetric,
-				metric.NewContainerGaugeData(container, "directstall",
-					float64(cgroupMetric.DirectstallCount),
-					"counting of cgroup try_charge reclaim", nil))
+		if container, exist := containersCssMem[cssAddr]; exist {
+			data = append(data, metric.NewContainerGaugeData(container, "directstall",
+				float64(reclaimVal.DirectstallCount), "counter of cgroup reclaim when try_charge", nil))
 		}
 	}
 
 	// if events haven't happened, upload zero for all containers.
 	if len(items) == 0 {
-		for _, container := range containersMap {
-			containersMetric = append(containersMetric,
-				metric.NewContainerGaugeData(container, "directstall", float64(0),
-					"counting of cgroup try_charge reclaim", nil))
+		for _, container := range containersCssMem {
+			data = append(data, metric.NewContainerGaugeData(container, "directstall",
+				float64(0), "counter of cgroup reclaim when try_charge", nil))
 		}
 	}
 
-	return containersMetric, nil
+	return data, nil
 }
 
-func (c *memoryCgroup) Start(ctx context.Context) error {
-	var err error
-	c.bpf, err = bpf.LoadBpf(bpf.ThisBpfOBJ(), nil)
+func (c *memoryCgroupReclaim) Start(ctx context.Context) error {
+	obj, err := bpf.LoadBpf(bpf.ThisBpfOBJ(), nil)
 	if err != nil {
-		return fmt.Errorf("load bpf: %w", err)
+		return err
 	}
-	defer c.bpf.Close()
+	defer obj.Close()
 
-	if err = c.bpf.Attach(); err != nil {
-		return fmt.Errorf("attach: %w", err)
+	if err := obj.Attach(); err != nil {
+		return err
 	}
 
 	childCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	c.bpf.WaitDetachByBreaker(childCtx, cancel)
-	c.isRuning = true
+	obj.WaitDetachByBreaker(childCtx, cancel)
+
+	c.bpf = obj
+	c.running.Store(true)
+
+	// wait stop
 	<-childCtx.Done()
-	c.isRuning = false
+	c.running.Store(false)
 	return nil
 }

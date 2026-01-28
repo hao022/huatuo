@@ -10,7 +10,7 @@
 char __license[] SEC("license") = "Dual MIT/GPL";
 
 struct mem_cgroup_metric {
-	/* cg: direct reclaim count caused by try_charge */
+	/* cgroup direct reclaim counter caused by try_charge */
 	unsigned long directstall_count;
 };
 
@@ -19,12 +19,12 @@ struct {
 	__type(key, unsigned long);
 	__type(value, struct mem_cgroup_metric);
 	__uint(max_entries, 10240);
-} mem_cgroup_map SEC(".maps");
+} memory_cgroup_allocpages_stall SEC(".maps");
 
 SEC("tracepoint/vmscan/mm_vmscan_memcg_reclaim_begin")
 int tracepoint_vmscan_mm_vmscan_memcg_reclaim_begin(struct pt_regs *ctx)
 {
-	struct cgroup_subsys_state *mm_subsys;
+	struct cgroup_subsys_state *css;
 	struct mem_cgroup_metric *valp;
 	struct task_struct *task;
 
@@ -32,13 +32,13 @@ int tracepoint_vmscan_mm_vmscan_memcg_reclaim_begin(struct pt_regs *ctx)
 	if (BPF_CORE_READ(task, flags) & PF_KSWAPD)
 		return 0;
 
-	mm_subsys = BPF_CORE_READ(task, cgroups, subsys[memory_cgrp_id]);
-	valp	  = bpf_map_lookup_elem(&mem_cgroup_map, &mm_subsys);
+	css  = BPF_CORE_READ(task, cgroups, subsys[memory_cgrp_id]);
+	valp = bpf_map_lookup_elem(&memory_cgroup_allocpages_stall, &css);
 	if (!valp) {
-		struct mem_cgroup_metric new_metrics = {
+		struct mem_cgroup_metric new = {
 			.directstall_count = 1,
 		};
-		bpf_map_update_elem(&mem_cgroup_map, &mm_subsys, &new_metrics,
+		bpf_map_update_elem(&memory_cgroup_allocpages_stall, &css, &new,
 				    COMPAT_BPF_ANY);
 		return 0;
 	}
@@ -51,6 +51,6 @@ SEC("kprobe/mem_cgroup_css_released")
 int kprobe_mem_cgroup_css_released(struct pt_regs *ctx)
 {
 	u64 css = PT_REGS_PARM1(ctx);
-	bpf_map_delete_elem(&mem_cgroup_map, &css);
+	bpf_map_delete_elem(&memory_cgroup_allocpages_stall, &css);
 	return 0;
 }
