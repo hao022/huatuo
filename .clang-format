@@ -1,0 +1,36 @@
+# Configuration file for clang-format.
+#
+# https://clang.llvm.org/docs/ClangFormatStyleOptions.html
+---
+Language: Cpp
+BasedOnStyle: LLVM
+
+UseTab: Always
+IndentWidth: 8
+TabWidth: 8
+ContinuationIndentWidth: 8
+IndentCaseLabels: false
+IndentGotoLabels: false
+
+BreakBeforeBraces: Linux
+AlignAfterOpenBracket: Align
+AlignConsecutiveAssignments:
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: true
+
+SortIncludes: true
+IncludeBlocks: Regroup
+IncludeCategories:
+- Regex:    'vmlinux.h'
+  Priority: -1
+- Regex:    '^<.*\.h>'
+  Priority: 1
+- Regex:    '^".*\.h'
+  Priority: 2
+
+ColumnLimit: 80
+PenaltyReturnTypeOnItsOwnLine: 10
+BreakAfterReturnType: Automatic
+BinPackParameters: true
+AllowAllArgumentsOnNextLine: false
