@@ -22,9 +22,7 @@ import (
 	"huatuo-bamai/pkg/tracing"
 )
 
-type tcpMemCollector struct {
-	data []*metric.Data
-}
+type tcpMemory struct{}
 
 func init() {
 	tracing.RegisterEventTracing("tcp_memory", newTcpMemory)
@@ -32,15 +30,8 @@ func init() {
 
 func newTcpMemory() (*tracing.EventTracingAttr, error) {
 	return &tracing.EventTracingAttr{
-		TracingData: &tcpMemCollector{
-			data: []*metric.Data{
-				metric.NewGaugeData("usage_pages", 0, "tcp mem usage(pages)", nil),
-				metric.NewGaugeData("usage_bytes", 0, "tcp mem usage(bytes)", nil),
-				metric.NewGaugeData("limit_pages", 0, "tcp mem limit(pages)", nil),
-				metric.NewGaugeData("usage_percent", 0, "tcp mem usage percent", nil),
-			},
-		},
-		Flag: tracing.FlagMetric,
+		TracingData: &tcpMemory{},
+		Flag:        tracing.FlagMetric,
 	}, nil
 }
 
@@ -85,16 +76,16 @@ func parseTcpMemory() (*tcpMemoryStat, error) {
 	return nil, fmt.Errorf("not found")
 }
 
-func (c *tcpMemCollector) Update() ([]*metric.Data, error) {
+func (c *tcpMemory) Update() ([]*metric.Data, error) {
 	stats, err := parseTcpMemory()
 	if err != nil {
 		return nil, err
 	}
 
-	c.data[0].Value = stats.memoryPages
-	c.data[1].Value = stats.memoryBytes
-	c.data[2].Value = stats.memoryLimit
-	c.data[3].Value = stats.memoryPages / stats.memoryLimit
-
-	return c.data, nil
+	return []*metric.Data{
+		metric.NewGaugeData("usage_pages", stats.memoryPages, "tcp memory pages usage", nil),
+		metric.NewGaugeData("usage_bytes", stats.memoryBytes, "tcp memory bytes usage", nil),
+		metric.NewGaugeData("limit_pages", stats.memoryLimit, "tcp memory pages limit", nil),
+		metric.NewGaugeData("usage_percent", stats.memoryPages/stats.memoryLimit, "tcp memory usage percent", nil),
+	}, nil
 }
