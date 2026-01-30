@@ -66,6 +66,14 @@ func (c *Container) LabelHostNamespace() string {
 	return c.Labels[labelHostNamespace].(string)
 }
 
+func (c *Container) InitPidOrInitnsPid() int {
+	if c != nil {
+		return c.InitPid
+	}
+
+	return 1
+}
+
 // containersByTypeQos returns the containers by type and level.
 func containersByTypeQos(typeMask ContainerType, minLevel ContainerQos) (map[string]*Container, error) {
 	updatedLock.Lock()

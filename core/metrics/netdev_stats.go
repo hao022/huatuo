@@ -102,11 +102,7 @@ func (c *netdevCollector) getStats(container *pod.Container, filter *fieldFilter
 }
 
 func (c *netdevCollector) netlinkStats(container *pod.Container, filter *fieldFilter) (netdevStats, error) {
-	pid := 1 // host
-	if container != nil {
-		pid = container.InitPid
-	}
-
+	pid := container.InitPidOrInitnsPid()
 	path := procfs.Path(strconv.Itoa(pid), "ns/net")
 
 	file, err := os.Open(path)
@@ -214,10 +210,7 @@ func (c *netdevCollector) netlinkStats(container *pod.Container, filter *fieldFi
 }
 
 func (c *netdevCollector) procStats(container *pod.Container, filter *fieldFilter) (netdevStats, error) {
-	pid := 1 // host
-	if container != nil {
-		pid = container.InitPid
-	}
+	pid := container.InitPidOrInitnsPid()
 
 	fs, err := procfs.NewProc(pid)
 	if err != nil {

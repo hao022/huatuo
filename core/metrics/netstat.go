@@ -75,10 +75,7 @@ func (c *netstatCollector) Update() ([]*metric.Data, error) {
 }
 
 func (c *netstatCollector) getStatMetrics(container *pod.Container, filter *fieldFilter) ([]*metric.Data, error) {
-	pid := 1 // host
-	if container != nil {
-		pid = container.InitPid
-	}
+	pid := container.InitPidOrInitnsPid()
 
 	netStats, err := c.readProcNetFile(pid, "netstat")
 	if err != nil {

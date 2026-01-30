@@ -73,10 +73,7 @@ func (c *sockstatCollector) Update() ([]*metric.Data, error) {
 }
 
 func (c *sockstatCollector) procStatMetrics(container *pod.Container) ([]*metric.Data, error) {
-	pid := 1
-	if container != nil {
-		pid = container.InitPid
-	}
+	pid := container.InitPidOrInitnsPid()
 
 	// NOTE: non-standard using procfs.NewFS.
 	fs, err := procfs.NewFS(filepath.Join(procfs.DefaultPath(), strconv.Itoa(pid)))
