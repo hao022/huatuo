@@ -46,26 +46,28 @@ func newNetstatCollector() (*tracing.EventTracingAttr, error) {
 }
 
 func (c *netstatCollector) Update() ([]*metric.Data, error) {
-	filter := newFieldFilter(conf.Get().MetricCollector.Netstat.Excluded, conf.Get().MetricCollector.Netstat.Included)
-	log.Debugf("Updating netstat metrics by filter: %v", filter)
-
 	containers, err := pod.NormalContainers()
 	if err != nil {
 		return nil, err
 	}
 
-	// support the empty container
+	// support the host metrics
 	if containers == nil {
 		containers = make(map[string]*pod.Container)
 	}
-	// append host into containers
+
+	// append init namespace into containers
 	containers[""] = nil
+
+	filter := newFieldFilter(conf.Get().MetricCollector.Netstat.Excluded,
+		conf.Get().MetricCollector.Netstat.Included)
 
 	var metrics []*metric.Data
 	for _, container := range containers {
-		m, err := c.getStatMetrics(container, filter)
+		m, err := buildNetAndSnmpStat(container, filter)
 		if err != nil {
-			return nil, fmt.Errorf("couldn't get netstat metrics for container %v: %w", container, err)
+			log.Errorf("netstat/snmp metrics for container %v: %v", container, err)
+			continue
 		}
 		metrics = append(metrics, m...)
 	}
@@ -74,17 +76,17 @@ func (c *netstatCollector) Update() ([]*metric.Data, error) {
 	return metrics, nil
 }
 
-func (c *netstatCollector) getStatMetrics(container *pod.Container, filter *fieldFilter) ([]*metric.Data, error) {
+func buildNetAndSnmpStat(container *pod.Container, filter *fieldFilter) ([]*metric.Data, error) {
 	pid := container.InitPidOrInitnsPid()
 
-	netStats, err := c.readProcNetFile(pid, "netstat")
+	netStats, err := parseNetStat(procfs.Path(strconv.Itoa(pid), "net", "netstat"))
 	if err != nil {
-		return nil, fmt.Errorf("couldn't get netstats for %v: %w", container, err)
+		return nil, err
 	}
 
-	snmpStats, err := c.readProcNetFile(pid, "snmp")
+	snmpStats, err := parseNetStat(procfs.Path(strconv.Itoa(pid), "net", "snmp"))
 	if err != nil {
-		return nil, fmt.Errorf("couldn't get SNMP stats for %v: %w", container, err)
+		return nil, err
 	}
 
 	// Merge the results of snmpStats into netStats (collisions are possible, but
@@ -96,11 +98,12 @@ func (c *netstatCollector) getStatMetrics(container *pod.Container, filter *fiel
 	var metrics []*metric.Data
 	for protocol, protocolStats := range netStats {
 		for name, value := range protocolStats {
-			key := protocol + "_" + name
 			v, err := strconv.ParseFloat(value, 64)
 			if err != nil {
-				return nil, fmt.Errorf("invalid value %s in netstats for %v: %w", value, container, err)
+				return nil, err
 			}
+
+			key := protocol + "_" + name
 
 			if filter.ignored(key) {
 				log.Debugf("Ignoring netstat metric %s", key)
@@ -109,10 +112,10 @@ func (c *netstatCollector) getStatMetrics(container *pod.Container, filter *fiel
 
 			if container != nil {
 				metrics = append(metrics,
-					metric.NewContainerGaugeData(container, key, v, fmt.Sprintf("Statistic %s.", protocol+name), nil))
+					metric.NewContainerGaugeData(container, key, v, fmt.Sprintf("statistic %s.", protocol+name), nil))
 			} else {
 				metrics = append(metrics,
-					metric.NewGaugeData(key, v, fmt.Sprintf("Statistic %s.", protocol+name), nil))
+					metric.NewGaugeData(key, v, fmt.Sprintf("statistic %s.", protocol+name), nil))
 			}
 		}
 	}
@@ -120,7 +123,7 @@ func (c *netstatCollector) getStatMetrics(container *pod.Container, filter *fiel
 	return metrics, nil
 }
 
-func (c *netstatCollector) procNetstats(fileName string) (map[string]map[string]string, error) {
+func parseNetStat(fileName string) (map[string]map[string]string, error) {
 	file, err := os.Open(fileName)
 	if err != nil {
 		return nil, err
@@ -128,35 +131,31 @@ func (c *netstatCollector) procNetstats(fileName string) (map[string]map[string]
 	defer file.Close()
 
 	var (
-		netStats = map[string]map[string]string{}
-		scanner  = bufio.NewScanner(file)
+		stats   = map[string]map[string]string{}
+		scanner = bufio.NewScanner(file)
 	)
 
 	for scanner.Scan() {
 		nameParts := strings.Split(scanner.Text(), " ")
+
 		scanner.Scan()
 		valueParts := strings.Split(scanner.Text(), " ")
-		// Remove trailing :.
-		protocol := nameParts[0][:len(nameParts[0])-1]
 
-		// protocol: only for Tcp/TcpExt
+		// remove trailing ":"
+		protocol := nameParts[0][:len(nameParts[0])-1]
 		if protocol != "Tcp" && protocol != "TcpExt" {
 			continue
 		}
 
-		netStats[protocol] = map[string]string{}
+		stats[protocol] = map[string]string{}
 		if len(nameParts) != len(valueParts) {
-			return nil, fmt.Errorf("mismatch field count mismatch in %s: %s",
-				fileName, protocol)
+			return nil, fmt.Errorf("mismatch: %s:%s", fileName, protocol)
 		}
+
 		for i := 1; i < len(nameParts); i++ {
-			netStats[protocol][nameParts[i]] = valueParts[i]
+			stats[protocol][nameParts[i]] = valueParts[i]
 		}
 	}
 
-	return netStats, scanner.Err()
-}
-
-func (c *netstatCollector) readProcNetFile(pid int, file string) (map[string]map[string]string, error) {
-	return c.procNetstats(procfs.Path(strconv.Itoa(pid), "net", file))
+	return stats, scanner.Err()
 }
