@@ -43,7 +43,7 @@ type netdevHw struct {
 	prog                  bpf.BPF
 	running               atomic.Bool
 	ifaceSwDroppedCounter map[string]uint64
-	ifaceList             map[string]ethtool.DrvInfo
+	ifaceList             map[string]*ethtool.DrvInfo
 	sysNetPath            string
 	mutex                 sync.Mutex
 }
@@ -64,7 +64,7 @@ func newNetdevHw() (*tracing.EventTracingAttr, error) {
 		return nil, err
 	}
 
-	ifaceList := make(map[string]ethtool.DrvInfo)
+	ifaceList := make(map[string]*ethtool.DrvInfo)
 	ifaceSwCounter := make(map[string]uint64)
 
 	log.Infof("processing interfaces: %v", ifaces)
@@ -81,7 +81,7 @@ func newNetdevHw() (*tracing.EventTracingAttr, error) {
 			continue
 		}
 
-		ifaceList[iface] = drv
+		ifaceList[iface] = &drv
 		ifaceSwCounter[iface] = 0
 		log.Debugf("support iface %s [%s] hardware rx_dropped", iface, drv.Driver)
 	}
