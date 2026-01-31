@@ -22,6 +22,8 @@ import (
 	"net"
 	"path/filepath"
 	"slices"
+	"sync"
+	"sync/atomic"
 
 	"huatuo-bamai/internal/bpf"
 	"huatuo-bamai/internal/conf"
@@ -35,15 +37,15 @@ import (
 )
 
 // currently supports mlx5_core, i40e, ixgbe, bnxt_en; will be removed in future
-var netDeviceDriver = []string{"mlx5_core", "i40e", "ixgbe", "bnxt_en", "virtio_net"}
+var deviceDriverList = []string{"mlx5_core", "i40e", "ixgbe", "bnxt_en", "virtio_net"}
 
 type netdevHw struct {
-	prog                bpf.BPF
-	data                []*metric.Data
-	isTracerRunning     bool
-	ifaceSwDropCounters map[string]uint64
-	ifaceList           map[string]int
-	sysNetPath          string
+	prog                  bpf.BPF
+	running               atomic.Bool
+	ifaceSwDroppedCounter map[string]uint64
+	ifaceList             map[string]ethtool.DrvInfo
+	sysNetPath            string
+	mutex                 sync.Mutex
 }
 
 //go:generate $BPF_COMPILE $BPF_INCLUDE -s $BPF_DIR/netdev_hw.c -o $BPF_DIR/netdev_hw.o
@@ -52,52 +54,43 @@ func init() {
 }
 
 func newNetdevHw() (*tracing.EventTracingAttr, error) {
-	interfaces, err := sysfs.DefaultNetClassDevices()
+	ifaces, err := sysfs.DefaultNetClassDevices()
 	if err != nil {
 		return nil, err
 	}
-
-	log.Infof("processing interfaces: %v", interfaces)
 
 	eth, err := ethtool.NewEthtool()
 	if err != nil {
 		return nil, err
 	}
 
-	ifaceRxDropped := []*metric.Data{}
-	ifaceIndex := make(map[string]int)
+	ifaceList := make(map[string]ethtool.DrvInfo)
+	ifaceSwCounter := make(map[string]uint64)
 
-	for _, iface := range interfaces {
-		drvInfo, err := eth.DriverInfo(iface)
+	log.Infof("processing interfaces: %v", ifaces)
+	for _, iface := range ifaces {
+		drv, err := eth.DriverInfo(iface)
 		if err != nil {
 			continue
 		}
+
 		// skip processing if the interface is not in the whitelist or the driver is not allowed
 		if !slices.Contains(conf.Get().MetricCollector.NetdevHW.DeviceList, iface) ||
-			!slices.Contains(netDeviceDriver, drvInfo.Driver) {
+			!slices.Contains(deviceDriverList, drv.Driver) {
 			log.Debugf("%s is skipped (not in whitelist or driver not allowed)", iface)
 			continue
 		}
 
-		ifaceIndex[iface] = len(ifaceRxDropped)
-
-		ifaceRxDropped = append(ifaceRxDropped, metric.NewCounterData(
-			"rx_dropped_total", 0, "count of packets dropped at hardware level",
-			map[string]string{
-				"device": iface,
-				"driver": drvInfo.Driver,
-			},
-		))
-
-		log.Debugf("support iface %s [%s] rx_dropped, and metric idx %d", iface, drvInfo.Driver, ifaceIndex[iface])
+		ifaceList[iface] = drv
+		ifaceSwCounter[iface] = 0
+		log.Debugf("support iface %s [%s] hardware rx_dropped", iface, drv.Driver)
 	}
 
 	return &tracing.EventTracingAttr{
 		TracingData: &netdevHw{
-			data:                ifaceRxDropped,
-			ifaceList:           ifaceIndex,
-			ifaceSwDropCounters: make(map[string]uint64),
-			sysNetPath:          sysfs.Path("class/net"),
+			ifaceList:             ifaceList,
+			ifaceSwDroppedCounter: ifaceSwCounter,
+			sysNetPath:            sysfs.Path("class/net"),
 		},
 		Interval: 10,
 		Flag:     tracing.FlagTracing | tracing.FlagMetric,
@@ -106,46 +99,57 @@ func newNetdevHw() (*tracing.EventTracingAttr, error) {
 
 // Update the drop statistics metrics
 func (netdev *netdevHw) Update() ([]*metric.Data, error) {
-	if !netdev.isTracerRunning {
+	if !netdev.running.Load() {
 		return nil, nil
 	}
 
-	if err := netdev.updateIfaceSwDropCounter(); err != nil {
+	// avoid data race
+	netdev.mutex.Lock()
+	defer netdev.mutex.Unlock()
+
+	if err := netdev.updateIfaceSwDroppedStat(); err != nil {
 		return nil, err
 	}
 
-	for iface := range netdev.ifaceList {
+	data := []*metric.Data{}
+	for iface, drv := range netdev.ifaceList {
 		counters := map[string]uint64{
 			"rx_dropped":       0,
 			"rx_missed_errors": 0,
 		}
 
 		for name := range counters {
-			counters[name], _ = netdev.readStat(iface, name)
+			counters[name], _ = netdev.readSysNetclassStat(iface, name)
 		}
 
 		count := counters["rx_missed_errors"]
-		// 1. no hwdrop or 2. rx_missed_errors is not used.
+		// 1. No packet loss
+		// 2. rx_missed_errors of the driver is not used.
 		if count == 0 {
-			// hwdrop = rx_dropped - software_drops
-			if sw, ok := netdev.ifaceSwDropCounters[iface]; ok {
+			// hardware drop = rx_dropped - software_drops
+			if sw, ok := netdev.ifaceSwDroppedCounter[iface]; ok {
 				count = counters["rx_dropped"] - sw
 			}
 		}
 
-		netdev.data[netdev.ifaceList[iface]].Value = float64(count)
+		data = append(data, metric.NewCounterData(
+			"rx_dropped_total", float64(count),
+			"count of packets dropped at hardware level",
+			map[string]string{"device": iface, "driver": drv.Driver},
+		))
 	}
 
-	return netdev.data, nil
+	return data, nil
 }
 
-func (netdev *netdevHw) readStat(iface, stat string) (uint64, error) {
+func (netdev *netdevHw) readSysNetclassStat(iface, stat string) (uint64, error) {
 	return parseutil.ReadUint(filepath.Join(netdev.sysNetPath, iface, "statistics", stat))
 }
 
-func (netdev *netdevHw) updateIfaceSwDropCounter() error {
+// store the software counter netdev.rx_dropped to bpf map.
+func (netdev *netdevHw) updateIfaceSwDroppedStat() error {
 	for iface := range netdev.ifaceList {
-		_, _ = parseutil.ReadUint(netdev.sysNetPath + iface + "/carrier_down_count")
+		_, _ = parseutil.ReadUint(filepath.Join(netdev.sysNetPath, iface, "carrier_down_count"))
 	}
 
 	// dump rx_dropped counters
@@ -173,9 +177,9 @@ func (netdev *netdevHw) updateIfaceSwDropCounter() error {
 		}
 
 		// iface can be dynamically added while huatuo is running.
-		if _, ok := netdev.ifaceSwDropCounters[ifi.Name]; ok {
+		if _, ok := netdev.ifaceSwDroppedCounter[ifi.Name]; ok {
 			log.Debugf("[rx_sw_dropped_stats] %s => %d", ifi.Name, counter)
-			netdev.ifaceSwDropCounters[ifi.Name] = counter
+			netdev.ifaceSwDroppedCounter[ifi.Name] = counter
 		}
 	}
 
@@ -185,12 +189,12 @@ func (netdev *netdevHw) updateIfaceSwDropCounter() error {
 func (netdev *netdevHw) Start(ctx context.Context) error {
 	prog, err := bpf.LoadBpf(bpf.ThisBpfOBJ(), nil)
 	if err != nil {
-		return fmt.Errorf("LoadBpf %s: %w", bpf.ThisBpfOBJ(), err)
+		return err
 	}
 	defer prog.Close()
 
-	if err = prog.Attach(); err != nil {
-		return fmt.Errorf("Attach %s: %w", bpf.ThisBpfOBJ(), err)
+	if err := prog.Attach(); err != nil {
+		return err
 	}
 
 	childCtx, cancel := context.WithCancel(ctx)
@@ -199,10 +203,10 @@ func (netdev *netdevHw) Start(ctx context.Context) error {
 	prog.WaitDetachByBreaker(childCtx, cancel)
 
 	netdev.prog = prog
-	netdev.isTracerRunning = true
+	netdev.running.Store(true)
 
 	<-childCtx.Done()
 
-	netdev.isTracerRunning = false
+	netdev.running.Store(false)
 	return nil
 }
