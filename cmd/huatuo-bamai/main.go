@@ -50,7 +50,7 @@ func mainAction(ctx *cli.Context) error {
 	if err := pidfile.Lock(ctx.App.Name); err != nil {
 		return fmt.Errorf("failed to lock pid file: %w", err)
 	}
-	defer pidfile.Remove(ctx.App.Name)
+	defer pidfile.UnLock(ctx.App.Name)
 
 	// init cpu quota
 	cgr, err := cgroups.NewCgroupManager()

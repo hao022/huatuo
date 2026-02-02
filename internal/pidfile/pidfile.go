@@ -30,23 +30,45 @@ func path(name string) string {
 
 // Lock pid with file
 func Lock(name string) error {
-	fd, err := syscall.Open(path(name), os.O_CREATE|os.O_RDWR, 0o666)
+	name = path(name)
+
+	f, err := os.OpenFile(name, os.O_CREATE|os.O_RDWR, 0o666)
 	if err != nil {
 		return err
 	}
 
-	lock := syscall.Flock_t{Type: syscall.F_WRLCK}
-	if err := syscall.FcntlFlock(uintptr(fd), syscall.F_SETLK, &lock); err != nil {
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		_ = f.Close()
+		if err == syscall.EAGAIN || err == syscall.EWOULDBLOCK {
+			pid, err := os.ReadFile(name)
+			if err != nil {
+				return fmt.Errorf("running path: %s", name)
+			}
+
+			return fmt.Errorf("running path: %s, pid %s", name, pid)
+		}
+
 		return err
 	}
 
-	_, err = syscall.Write(fd, []byte(strconv.Itoa(os.Getpid())))
+	_, err = f.WriteString(strconv.Itoa(os.Getpid()))
 	return err
 }
 
-// Remove remove the pidfile
-func Remove(name string) {
-	os.Remove(path(name))
+// UnLock the pidfile
+// If a return value is needed in the future, we will support it.
+// The current implementation is simpler.
+func UnLock(name string) {
+	name = path(name)
+
+	f, err := os.OpenFile(name, os.O_CREATE|os.O_RDWR, 0o666)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+
+	_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+	_ = os.Remove(name)
 }
 
 // Read reads the "PID file" at path, and returns the PID if it contains a
