@@ -95,14 +95,14 @@ func updateContainersCPUIdle() error {
 
 	for _, container := range containers {
 		if _, ok := containersCPUIdle[container.ID]; ok {
-			containersCPUIdle[container.ID].path = container.CgroupSuffix
+			containersCPUIdle[container.ID].path = container.CgroupPath
 			containersCPUIdle[container.ID].alive = true
 			containersCPUIdle[container.ID].id = container.ID
 			continue
 		}
 
 		containersCPUIdle[container.ID] = &containerCPUInfo{
-			path:  container.CgroupSuffix,
+			path:  container.CgroupPath,
 			alive: true,
 			id:    container.ID,
 		}

@@ -73,7 +73,7 @@ func containerLoadavg() ([]*metric.Data, error) {
 
 	loadavgs := []*metric.Data{}
 	for _, container := range containers {
-		stats, err := n.GetCpuLoad(container.Hostname, paths.Path("cpu", container.CgroupSuffix))
+		stats, err := n.GetCpuLoad(container.Hostname, paths.Path("cpu", container.CgroupPath))
 		if err != nil {
 			continue
 		}

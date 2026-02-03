@@ -82,7 +82,7 @@ func (c *memOthersCollector) Update() ([]*metric.Data, error) {
 				name: "local_direct_reclaim_time",
 			},
 		} {
-			value, err := parseValueWithKey(container.CgroupSuffix, t.path, t.key)
+			value, err := parseValueWithKey(container.CgroupPath, t.path, t.key)
 			if err != nil {
 				// FIXME: os maynot support this metric
 				continue

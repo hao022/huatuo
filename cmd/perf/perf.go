@@ -46,7 +46,7 @@ func mainAction(ctx *cli.Context) error {
 		if err != nil {
 			return err
 		}
-		targetCssAddr = c.CSS["cpu"]
+		targetCssAddr = c.CgroupCss["cpu"]
 	}
 
 	if err := bpf.InitBpfManager(&bpf.Option{

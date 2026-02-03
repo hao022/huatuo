@@ -58,9 +58,9 @@ func (c *memoryCgroupStat) Update() ([]*metric.Data, error) {
 
 	var metrics []*metric.Data
 	for _, container := range containers {
-		raw, err := c.cgroup.MemoryStatRaw(container.CgroupSuffix)
+		raw, err := c.cgroup.MemoryStatRaw(container.CgroupPath)
 		if err != nil {
-			log.Infof("parse %s memory.stat %v", container.CgroupSuffix, err)
+			log.Infof("parse %s memory.stat %v", container.CgroupPath, err)
 			continue
 		}
 

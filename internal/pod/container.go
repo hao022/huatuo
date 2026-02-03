@@ -41,15 +41,15 @@ type Container struct {
 	Hostname          string            `json:"hostname"`
 	Type              ContainerType     `json:"type"`
 	Qos               ContainerQos      `json:"qos"`
-	IPAddress         string            `json:"ip_address"`
+	IPAddress         string            `json:"net_ip_address"`
 	NetNamespaceInode uint64            `json:"net_namespace_inode"`
-	InitPid           int               `json:"init_pid"` // the pid-1 of container
-	CgroupSuffix      string            `json:"cgroup_suffix"`
-	CSS               map[string]uint64 `json:"css"`        // map: Name -> Address
-	StartedAt         time.Time         `json:"started_at"` // started time
-	SyncedAt          time.Time         `json:"synced_at"`  // synced time
+	InitPid           int               `json:"init_pid"`
+	CgroupPath        string            `json:"cgroup_path"`
+	CgroupCss         map[string]uint64 `json:"cgroup_css"` // map for: subSysName -> structAddress
+	StartedAt         time.Time         `json:"started_at"`
+	SyncedAt          time.Time         `json:"synced_at"`
+	Labels            map[string]any    `json:"labels"` // custom labels
 	lifeResouces      map[string]any
-	Labels            map[string]any `json:"labels"` // custom labels
 }
 
 func (c *Container) String() string {
@@ -164,7 +164,7 @@ func ContainerByNetNamespaceInode(inode uint64) (*Container, error) {
 func BuildCssContainersID(containers map[string]*Container, subsys string) map[uint64]string {
 	cssToContainerMap := make(map[uint64]string, len(containers))
 	for _, container := range containers {
-		if addr, ok := container.CSS[subsys]; ok {
+		if addr, ok := container.CgroupCss[subsys]; ok {
 			cssToContainerMap[addr] = container.ID
 		}
 	}
@@ -175,7 +175,7 @@ func BuildCssContainersID(containers map[string]*Container, subsys string) map[u
 func BuildCssContainers(containers map[string]*Container, subsys string) map[uint64]*Container {
 	cssToContainerMap := make(map[uint64]*Container, len(containers))
 	for _, container := range containers {
-		if addr, ok := container.CSS[subsys]; ok {
+		if addr, ok := container.CgroupCss[subsys]; ok {
 			cssToContainerMap[addr] = container
 		}
 	}

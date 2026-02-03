@@ -85,12 +85,12 @@ func (c *cpuStatCollector) cpuMetricUpdate(cpu *cpuStat, container *pod.Containe
 		return nil
 	}
 
-	raw, err := c.cgroup.CpuStatRaw(container.CgroupSuffix)
+	raw, err := c.cgroup.CpuStatRaw(container.CgroupPath)
 	if err != nil {
 		return err
 	}
 
-	usage, err := c.cgroup.CpuUsage(container.CgroupSuffix)
+	usage, err := c.cgroup.CpuUsage(container.CgroupPath)
 	if err != nil {
 		return err
 	}

@@ -92,16 +92,16 @@ func updateContainersDload() error {
 
 	for _, container := range containers {
 		if _, ok := containersDloads[container.ID]; ok {
-			containersDloads[container.ID].name = container.CgroupSuffix
-			containersDloads[container.ID].path = paths.Path("cpu", container.CgroupSuffix)
+			containersDloads[container.ID].name = container.CgroupPath
+			containersDloads[container.ID].path = paths.Path("cpu", container.CgroupPath)
 			containersDloads[container.ID].container = container
 			containersDloads[container.ID].alive = true
 			continue
 		}
 
 		containersDloads[container.ID] = &containerDloadInfo{
-			path:      paths.Path("cpu", container.CgroupSuffix),
-			name:      container.CgroupSuffix,
+			path:      paths.Path("cpu", container.CgroupPath),
+			name:      container.CgroupPath,
 			container: container,
 			alive:     true,
 		}

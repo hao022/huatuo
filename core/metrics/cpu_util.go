@@ -91,7 +91,7 @@ func (c *cpuUtilCollector) cpuMetricUpdate(cpuMetric *cpuMetric, container *pod.
 	}
 
 	if container != nil {
-		cgroupPath = container.CgroupSuffix
+		cgroupPath = container.CgroupPath
 	}
 
 	stat, err := c.cgroup.CpuUsage(cgroupPath)
@@ -152,7 +152,7 @@ func (c *cpuUtilCollector) Update() ([]*metric.Data, error) {
 	}
 
 	for _, container := range containers {
-		cpuQuota, err := c.cgroup.CpuQuotaAndPeriod(container.CgroupSuffix)
+		cpuQuota, err := c.cgroup.CpuQuotaAndPeriod(container.CgroupPath)
 		if err != nil {
 			log.Infof("fetch container [%s] cpu quota and period: %v", container, err)
 			continue

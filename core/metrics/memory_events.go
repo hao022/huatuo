@@ -53,7 +53,7 @@ func (c *memEventsCollector) Update() ([]*metric.Data, error) {
 
 	metrics := []*metric.Data{}
 	for _, container := range containers {
-		raw, err := c.cgroup.MemoryEventRaw(container.CgroupSuffix)
+		raw, err := c.cgroup.MemoryEventRaw(container.CgroupPath)
 		if err != nil {
 			return nil, err
 		}
