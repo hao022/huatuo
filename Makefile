@@ -40,13 +40,14 @@ docker-build:
 docker-clean:
 	@docker rmi $(IMAGE_LATEST) || true
 
-GO_FILES := $(shell find . -type f -name '*.go' -not -path "./vendor/*" -not -path "./.git/*")
-check: imports fmt golangci-lint
+check: import-fmt golangci-lint
+	@git diff --exit-code
 
-imports:
+import-fmt:
+	$(eval GO_FILES := $(shell find . -name '*.go' ! \( -path "./vendor/*" -o -path "./.git/*" \)))
+	@# goimports
 	@goimports -w -local huatuo-bamai  ${GO_FILES}
-
-fmt:
+	@# golang and shell fmt
 	@gofumpt -l -w $(GO_FILES);
 	@gofmt -w -r 'interface{} -> any' $(GO_FILES)
 	@find . -name "*.sh" -not -path "./vendor/*" -exec shfmt -i 0 -w {} \;
@@ -68,4 +69,4 @@ integration: all mock-build
 
 force:;
 
-.PHONY: all bpf-build mock-build sync build check imports fmt golangci-lint vendor clean integration force docker-build docker-clean
+.PHONY: all bpf-build mock-build sync build check import-fmt golangci-lint vendor clean integration force docker-build docker-clean
