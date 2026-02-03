@@ -206,7 +206,7 @@ func (d *Data) prometheusMetric(collector string) prometheus.Metric {
 		return nil
 	}
 
-	metricName := prometheus.BuildFQName(promNamespace, collector, d.name)
+	metricName := prometheus.BuildFQName(DefaultNamespace, collector, d.name)
 	desc, ok := metricDescCache.Load(metricName)
 	if !ok {
 		desc = prometheus.NewDesc(metricName, d.help, d.labelKey, nil)

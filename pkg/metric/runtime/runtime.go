@@ -1,4 +1,4 @@
-// Copyright 2025 The HuaTuo Authors
+// Copyright 2026 The HuaTuo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,25 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package runtime
 
 import (
-	"huatuo-bamai/pkg/metric"
-	"huatuo-bamai/pkg/metric/runtime"
-
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 )
 
-// InitMetricsCollector creates a new MetricsCollector instance.
-func InitMetricsCollector(blackListed []string, region string) (*prometheus.Registry, error) {
-	nc, err := metric.NewCollectorManager(blackListed, region)
-	if err != nil {
-		return nil, err
-	}
+func RegisterCollector(reg *prometheus.Registry, namespace string) {
+	reg.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{
+		Namespace: namespace,
+	}))
 
-	reg := prometheus.NewRegistry()
-	reg.MustRegister(nc)
-
-	runtime.RegisterCollector(reg, metric.DefaultNamespace)
-	return reg, nil
+	prefixedReg := prometheus.WrapRegistererWithPrefix(namespace+"_", reg)
+	prefixedReg.MustRegister(collectors.NewGoCollector())
 }
