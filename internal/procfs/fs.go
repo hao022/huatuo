@@ -20,13 +20,19 @@ import (
 	"github.com/prometheus/procfs"
 )
 
+const (
+	_defaultProcPath = "/proc"
+	_defaultSysPath  = "/sys"
+	_defaultDevPath  = "/dev"
+)
+
 var (
 	// defaultProcMountPoint is the common mount point of the proc filesystem.
-	defaultProcMountPoint = "/proc"
+	defaultProcMountPoint = _defaultProcPath
 	// defaultSysMountPoint is the common mount point of the sys filesystem.
-	defaultSysMountPoint = "/sys"
+	defaultSysMountPoint = _defaultSysPath
 	// defaultDevMountPoint is the common mount point of the dev path.
-	defaultDevMountPoint = "/dev"
+	defaultDevMountPoint = _defaultDevPath
 )
 
 // defaultPaths defines resolvers for default mount points of /proc, /sys, and /dev.
@@ -41,13 +47,9 @@ type FS = procfs.FS
 
 // RootPrefix add prefix for /proc, /sys, and /dev. Invoked only for integration test.
 func RootPrefix(root string) {
-	if root == "" {
-		return
-	}
-
-	defaultProcMountPoint = filepath.Join(root, defaultProcMountPoint)
-	defaultSysMountPoint = filepath.Join(root, defaultSysMountPoint)
-	defaultDevMountPoint = filepath.Join(root, defaultDevMountPoint)
+	defaultProcMountPoint = filepath.Join(root, _defaultProcPath)
+	defaultSysMountPoint = filepath.Join(root, _defaultSysPath)
+	defaultDevMountPoint = filepath.Join(root, _defaultDevPath)
 }
 
 // NewDefaultFS returns a new proc FS using runtime-initialized mount points.
