@@ -31,7 +31,6 @@ import (
 	"huatuo-bamai/internal/utils/netutil"
 
 	corev1 "k8s.io/api/core/v1"
-	kubeletconfig "k8s.io/kubelet/config/v1beta1"
 	"sigs.k8s.io/yaml"
 )
 
@@ -46,12 +45,29 @@ var (
 	kubeletTimeTicker            *time.Ticker
 	kubeletDoneCancel            context.CancelFunc
 	kubeletPodCgroupDriver       = "cgroupfs"
+	kubeletRuntimeEndpoint       = "unix:///run/containerd/containerd.sock"
 	kubeletDefaultConfigPath     = []string{
 		"/var/lib/kubelet/config.yaml",
 		"/var/lib/kubelet/ack-managed-config.yaml",
 		"/host/etc/kubernetes/kubelet/config.json",
 	}
 )
+
+type kubeletConfiguration struct {
+	// cgroupDriver is the driver kubelet uses to manipulate CGroups on the host (cgroupfs
+	// or systemd).
+	// Default: "cgroupfs"
+	// +optional
+	CgroupDriver string `json:"cgroupDriver,omitempty"`
+	// ContainerRuntimeEndpoint is the endpoint of container runtime.
+	// Unix Domain Sockets are supported on Linux, while npipe and tcp endpoints are supported on Windows.
+	// Examples:'unix:///path/to/runtime.sock', 'npipe:////./pipe/runtime'
+	ContainerRuntimeEndpoint string `json:"containerRuntimeEndpoint"`
+}
+
+type kubeletConfigz struct {
+	Kubeletconfig kubeletConfiguration `json:"kubeletconfig"`
+}
 
 type PodContainerInitCtx struct {
 	PodReadOnlyPort      uint32
@@ -158,7 +174,7 @@ func ContainerPodMgrInit(ctx *PodContainerInitCtx) error {
 		// success or other error codes except connect refused
 		// only init css metadata collect when kubelet available.
 		if err == nil {
-			_ = kubeletCgroupDriverCacheUpdate(ctx)
+			_ = kubeletConfigCacheUpdate(ctx)
 			return containerCgroupCssInit()
 		}
 
@@ -177,7 +193,7 @@ func ContainerPodMgrInit(ctx *PodContainerInitCtx) error {
 			case <-t.C:
 				if err := kubeletPodListPortCacheUpdate(ctx); err == nil {
 					log.Infof("kubelet is running now")
-					_ = kubeletCgroupDriverCacheUpdate(ctx)
+					_ = kubeletConfigCacheUpdate(ctx)
 					_ = containerCgroupCssInit()
 					ContainerPodMgrClose()
 					break
@@ -302,19 +318,20 @@ func kubeletPodListDoRequest(client *http.Client, kubeletPodListURL string) (cor
 	return podList, nil
 }
 
-func kubeletConfigDoRequest(client *http.Client, kubeletConfigURL string) (kubeletconfig.KubeletConfiguration, error) {
-	config := kubeletconfig.KubeletConfiguration{}
+func kubeletConfigDoRequest(client *http.Client, kubeletConfigURL string) (kubeletConfiguration, error) {
+	empty := kubeletConfiguration{}
 
 	body, err := httpDoRequest(client, kubeletConfigURL)
 	if err != nil {
-		return config, err
+		return empty, err
 	}
 
+	config := kubeletConfigz{}
 	if err := json.Unmarshal(body, &config); err != nil {
-		return config, fmt.Errorf("http: %s, Unmarshal: %w, body: %s", kubeletConfigURL, err, string(body))
+		return empty, fmt.Errorf("http: %s, Unmarshal: %w, body: %s", kubeletConfigURL, err, string(body))
 	}
 
-	return config, nil
+	return config.Kubeletconfig, nil
 }
 
 func httpDoRequest(client *http.Client, url string) ([]byte, error) {
@@ -446,17 +463,16 @@ func isRuningPod(pod *corev1.Pod) bool {
 	return true
 }
 
-func kubeletConfigDefault() (kubeletconfig.KubeletConfiguration, error) {
-	empty := kubeletconfig.KubeletConfiguration{}
+func kubeletConfigFileDefault() (kubeletConfiguration, error) {
+	empty := kubeletConfiguration{}
 
 	for _, name := range kubeletDefaultConfigPath {
-		config := kubeletconfig.KubeletConfiguration{}
-
 		data, err := os.ReadFile(name)
 		if err != nil {
 			continue
 		}
 
+		config := kubeletConfiguration{}
 		if err := yaml.Unmarshal(data, &config); err != nil {
 			continue
 		}
@@ -467,25 +483,39 @@ func kubeletConfigDefault() (kubeletconfig.KubeletConfiguration, error) {
 	return empty, fmt.Errorf("not found kubelet config")
 }
 
-func kubeletCgroupDriverCacheUpdate(ctx *PodContainerInitCtx) error {
+// kubeletConfigCacheUpdate try to update the cache var:
+//
+// CgroupDriver
+// ContainerRuntimeEndpoint
+func kubeletConfigCacheUpdate(ctx *PodContainerInitCtx) error {
 	var (
-		config kubeletconfig.KubeletConfiguration
+		config kubeletConfiguration
 		err    error
 	)
 
+	defer func() {
+		if config.CgroupDriver != "" {
+			kubeletPodCgroupDriver = config.CgroupDriver
+		}
+		if config.ContainerRuntimeEndpoint != "" {
+			kubeletRuntimeEndpoint = config.ContainerRuntimeEndpoint
+		}
+
+		log.Debugf("kubelet config cache updated, cgroup driver: %s, runtime: %s",
+			kubeletPodCgroupDriver, kubeletRuntimeEndpoint)
+	}()
+
 	config, err = kubeletConfigDoRequest(kubeletPodListClient, kubeletConfigAuthorizedURL(ctx.PodAuthorizedPort))
 	if err == nil {
-		kubeletPodCgroupDriver = config.CgroupDriver
 		return nil
 	}
 
 	log.Debugf("kubelet config port is not available, try to read config files: %v", kubeletDefaultConfigPath)
 
-	config, err = kubeletConfigDefault()
+	config, err = kubeletConfigFileDefault()
 	if err != nil {
 		panic("we cant not find any cgroup driver of kubelet after requesting configz and default files")
 	}
 
-	kubeletPodCgroupDriver = config.CgroupDriver
 	return nil
 }

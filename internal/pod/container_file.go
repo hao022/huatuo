@@ -90,7 +90,7 @@ func initDockerProviderEnv() error {
 
 func initContainerdProviderEnv() error {
 	// timeout: 5s
-	client, err := k8sremote.NewRemoteRuntimeService("unix:///run/containerd/containerd.sock", 5*time.Second, nil, nil)
+	client, err := k8sremote.NewRemoteRuntimeService(kubeletRuntimeEndpoint, 5*time.Second, nil, nil)
 	if err != nil {
 		return fmt.Errorf("create containerd client, err: %w", err)
 	}
