@@ -1,0 +1,79 @@
+name: sync web when content changes
+
+env:
+  WORKING_DIRECTORY: huatuo-web
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+      - 'data/img/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'data/img/**'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout huatuo
+        uses: actions/checkout@v4
+        with:
+          path: huatuo
+      - name: checkout huatuo web
+        uses: actions/checkout@v4
+        with:
+          repository: hao022/huatuo-web
+          ref: main
+          path: huatuo-web
+          token: ${{ secrets.HUATUO_RELEASE_TOKEN }}
+      - name: setup Hugo
+        uses: peaceiris/actions-hugo@v3
+        with:
+          hugo-version: '0.146.4'
+          extended: true
+      - name: setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: install postcss dependencies
+        working-directory: ${{ env.WORKING_DIRECTORY }}/docs
+        run: |
+          npm ci
+      - name: run build.sh, sync.sh and upload.sh
+        working-directory: ${{ env.WORKING_DIRECTORY }}
+        env:
+          REPO_A_PATH: ${{ github.workspace }}/huatuo
+        run: |
+          chmod +x sync.sh build.sh || true
+          ./sync.sh "$REPO_A_PATH"
+          ./build.sh
+      # the web pages
+      - name: deploy github
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          personal_token: ${{ secrets.HUATUO_RELEASE_TOKEN }}
+          publish_dir: ${{ env.WORKING_DIRECTORY }}/main/public/
+          publish_branch: main
+          external_repository: ${{ secrets.HUGO_PUBLIC_REPO }}
+          commit_message: "${{ github.sha }}"
+          keep_files: false
+          force_orphan: true
+          cname: huatuo.tech
+          allow_empty_commit: true
+          user_name: 'huatuo-teams[bot]'
+          user_email: 'huatuo-teams[bot]@users.noreply.github.com'
+      - name: deploy server
+        uses: easingthemes/ssh-deploy@main
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.REMOTE_WEB_SSH_KEY }}
+          ARGS: "-avz --delete"
+          SOURCE: ${{ env.WORKING_DIRECTORY }}/main/public/
+          REMOTE_HOST: ${{ secrets.REMOTE_WEB_HOST }}
+          REMOTE_USER: ${{ secrets.REMOTE_WEB_USER }}
+          TARGET: ${{ secrets.REMOTE_WEB_TARGET }}
