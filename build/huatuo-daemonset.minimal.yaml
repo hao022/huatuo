@@ -26,6 +26,7 @@ spec:
       containers:
       - name: huatuo
         image: docker.io/huatuo/huatuo-bamai:v2.1.0
+        imagePullPolicy: IfNotPresent
         resources:
           limits:
             cpu: '1'
