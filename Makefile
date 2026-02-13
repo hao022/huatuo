@@ -53,7 +53,7 @@ $(APP_CMD_OUTPUT)/bin/%: $(APP_CMD_DIR)/% force
 	$(GO_BUILD_IMPL) -o $@ ./$<
 
 docker-build:
-	@docker build --network=host --no-cache -t $(IMAGE) -f Dockerfile .
+	@docker build --network=host --no-cache --build-arg BUILD_MODE=$(BUILD_MODE) -t $(IMAGE) -f Dockerfile .
 
 docker-clean:
 	@docker rmi $(IMAGE) || true
