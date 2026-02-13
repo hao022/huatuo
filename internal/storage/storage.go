@@ -51,14 +51,18 @@ var (
 var containerLookupFunc = pod.ContainerByID
 
 func createBaseDocument(tracerName, containerID string, tracerTime time.Time, tracerData any) *types.Document {
-	// TODO: support for !didi.
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = storageInitCtx.Hostname
+	}
+
 	doc := &types.Document{
 		ContainerID:  containerID,
 		UploadedTime: time.Now(),
 		TracerName:   tracerName,
 		TracerData:   tracerData,
 		Region:       storageInitCtx.Region,
-		Hostname:     storageInitCtx.Hostname,
+		Hostname:     hostname,
 	}
 
 	// equal to `TracerTime`, supported the old version.

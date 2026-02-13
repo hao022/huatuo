@@ -17,6 +17,7 @@ package metric
 import (
 	"errors"
 	"fmt"
+	"os"
 	"sort"
 	"sync"
 
@@ -81,8 +82,13 @@ func newData(name string, value float64, typ int, help string, label map[string]
 		help:      help,
 	}
 
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = defaultHostname
+	}
+
 	data.labelKey = append(data.labelKey, LabelRegion, LabelHost)
-	data.labelValue = append(data.labelValue, defaultRegion, defaultHostname)
+	data.labelValue = append(data.labelValue, defaultRegion, hostname)
 
 	// sort the labelKey
 	selfLabelKeys := make([]string, 0, len(label))
@@ -144,6 +150,11 @@ func newContainerData(container *pod.Container, name string, value float64, typ 
 		help:      help,
 	}
 
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = defaultHostname
+	}
+
 	// default label
 	data.labelKey = append(data.labelKey,
 		LabelRegion,
@@ -160,7 +171,7 @@ func newContainerData(container *pod.Container, name string, value float64, typ 
 		container.Type.String(),
 		container.Qos.String(),
 		container.LabelHostNamespace(),
-		defaultHostname)
+		hostname)
 
 	// sort the labelKey
 	selfLabelKeys := make([]string, 0, len(label))
