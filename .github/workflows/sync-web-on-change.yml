@@ -1,7 +1,7 @@
 name: sync web when content changes
 
 env:
-  WORKING_DIRECTORY: huatuo-web
+  WEB_ROOT_DIR: huatuo-web
 
 on:
   push:
@@ -24,6 +24,8 @@ jobs:
       - name: checkout huatuo
         uses: actions/checkout@v4
         with:
+          repository: ccfos/huatuo
+          ref: main
           path: huatuo
       - name: checkout huatuo web
         uses: actions/checkout@v4
@@ -42,11 +44,11 @@ jobs:
         with:
           node-version: '20'
       - name: install postcss dependencies
-        working-directory: ${{ env.WORKING_DIRECTORY }}/docs
+        working-directory: ${{ env.WEB_ROOT_DIR }}/docs
         run: |
           npm ci
       - name: run build.sh, sync.sh and upload.sh
-        working-directory: ${{ env.WORKING_DIRECTORY }}
+        working-directory: ${{ env.WEB_ROOT_DIR }}
         env:
           REPO_A_PATH: ${{ github.workspace }}/huatuo
         run: |
@@ -58,7 +60,7 @@ jobs:
         uses: peaceiris/actions-gh-pages@v3
         with:
           personal_token: ${{ secrets.HUATUO_RELEASE_TOKEN }}
-          publish_dir: ${{ env.WORKING_DIRECTORY }}/main/public/
+          publish_dir: ${{ env.WEB_ROOT_DIR }}/main/public/
           publish_branch: main
           external_repository: ${{ secrets.HUGO_PUBLIC_REPO }}
           commit_message: "${{ github.sha }}"
@@ -73,7 +75,7 @@ jobs:
         env:
           SSH_PRIVATE_KEY: ${{ secrets.REMOTE_WEB_SSH_KEY }}
           ARGS: "-avz --delete"
-          SOURCE: ${{ env.WORKING_DIRECTORY }}/main/public/
+          SOURCE: ${{ env.WEB_ROOT_DIR }}/main/public/
           REMOTE_HOST: ${{ secrets.REMOTE_WEB_HOST }}
           REMOTE_USER: ${{ secrets.REMOTE_WEB_USER }}
           TARGET: ${{ secrets.REMOTE_WEB_TARGET }}
