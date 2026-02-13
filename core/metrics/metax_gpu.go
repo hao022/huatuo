@@ -30,6 +30,7 @@ import (
 	"huatuo-bamai/internal/log"
 	"huatuo-bamai/pkg/metric"
 	"huatuo-bamai/pkg/tracing"
+	"huatuo-bamai/pkg/types"
 )
 
 func init() {
@@ -41,7 +42,7 @@ type metaxGpuCollector struct{}
 func newMetaxGpuCollector() (*tracing.EventTracingAttr, error) {
 	// Init MetaX SML lib
 	if err := sml.Init(); err != nil {
-		return nil, fmt.Errorf("failed to init sml: %w", err)
+		return nil, types.ErrNotSupported
 	}
 
 	return &tracing.EventTracingAttr{
