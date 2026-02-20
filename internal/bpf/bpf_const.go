@@ -20,7 +20,10 @@ import (
 	"strings"
 )
 
-const TaskCommLen = 16
+const (
+	TaskCommLen      = 16
+	NetdeviceLenSize = 16
+)
 
 func ThisBpfOBJ() string {
 	_, name, _, ok := runtime.Caller(1)
