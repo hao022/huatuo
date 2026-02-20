@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"huatuo-bamai/internal/conf"
+	"huatuo-bamai/internal/linkstatus"
 	"huatuo-bamai/internal/log"
 	"huatuo-bamai/internal/storage"
 	"huatuo-bamai/pkg/metric"
@@ -31,43 +32,6 @@ import (
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 )
-
-type linkStatusType uint8
-
-const (
-	linkStatusUnknown linkStatusType = iota
-	linkStatusAdminUp
-	linkStatusAdminDown
-	linkStatusCarrierUp
-	linkStatusCarrierDown
-	maxLinkStatus
-)
-
-func (l linkStatusType) String() string {
-	return [...]string{"linkstatus_unknown", "linkstatus_adminup", "linkstatus_admindown", "linkstatus_carrierup", "linkstatus_carrierdown"}[l]
-}
-
-func flags2status(flags, change uint32) []linkStatusType {
-	var status []linkStatusType
-
-	if change&unix.IFF_UP != 0 {
-		if flags&unix.IFF_UP != 0 {
-			status = append(status, linkStatusAdminUp)
-		} else {
-			status = append(status, linkStatusAdminDown)
-		}
-	}
-
-	if change&unix.IFF_LOWER_UP != 0 {
-		if flags&unix.IFF_LOWER_UP != 0 {
-			status = append(status, linkStatusCarrierUp)
-		} else {
-			status = append(status, linkStatusCarrierDown)
-		}
-	}
-
-	return status
-}
 
 type netdevInfo struct {
 	flags           uint32
@@ -81,8 +45,8 @@ type netdevTracing struct {
 	linkUpdateCh          chan netlink.LinkUpdate
 	linkDoneCh            chan struct{}
 	mu                    sync.Mutex
-	netdevInfoStore       map[string]*netdevInfo            // [ifname]ifinfomsg::netdevInfo
-	linkStatusEventCounts map[linkStatusType]map[string]int // [netdevEventType][ifname]count
+	netdevInfoStore       map[string]*netdevInfo              // [ifname]ifinfomsg::netdevInfo
+	linkStatusEventCounts map[linkstatus.Types]map[string]int // [netdevEventType][ifname]count
 }
 
 type netdevEventData struct {
@@ -103,8 +67,8 @@ func init() {
 }
 
 func newNetdevTracing() (*tracing.EventTracingAttr, error) {
-	initMap := make(map[linkStatusType]map[string]int)
-	for i := linkStatusUnknown; i < maxLinkStatus; i++ {
+	initMap := make(map[linkstatus.Types]map[string]int)
+	for i := linkstatus.Unknown; i < linkstatus.MaxTypeNums; i++ {
 		initMap[i] = make(map[string]int)
 	}
 
@@ -222,7 +186,7 @@ func (netdev *netdevTracing) checkAndInitLinkStatus() error {
 }
 
 func (netdev *netdevTracing) updateAndSaveEvent(data *netdevEventData) {
-	for _, status := range flags2status(data.linkFlags, data.flagsChange) {
+	for _, status := range linkstatus.Changed(data.linkFlags, data.flagsChange) {
 		netdev.mu.Lock()
 		netdev.linkStatusEventCounts[status][data.Ifname]++
 		netdev.mu.Unlock()
