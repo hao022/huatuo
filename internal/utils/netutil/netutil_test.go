@@ -28,7 +28,7 @@ func TestInetv4Ntop(t *testing.T) {
 	}{
 		{
 			name: "Loopback IPv4",
-			ip:   0x7f000001, // 127.0.0.1 in host byte order (little-endian assumption)
+			ip:   0x100007f, // 127.0.0.1 in host byte order (little-endian assumption)
 			want: net.IPv4(127, 0, 0, 1),
 		},
 		{

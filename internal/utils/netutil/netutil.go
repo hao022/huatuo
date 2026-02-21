@@ -29,11 +29,12 @@ var NativeEndian = nl.NativeEndian()
 //
 // https://man7.org/linux/man-pages/man3/inet_ntop.3.html
 func Inetv4Ntop(addr uint32) net.IP {
+	// a.b.c.d.
 	return net.IPv4(
-		byte(addr>>24),
-		byte(addr>>16),
-		byte(addr>>8),
 		byte(addr),
+		byte(addr>>8),
+		byte(addr>>16),
+		byte(addr>>24),
 	).To4()
 }
 
