@@ -1,6 +1,7 @@
 #include "vmlinux.h"
 
 #include "bpf_common.h"
+#include "bpf_netdevice.h"
 #include "bpf_ratelimit.h"
 #include "vmlinux_net.h"
 
@@ -22,13 +23,18 @@ struct perf_event_t {
 	u16 dport;
 	u32 seq;
 	u32 ack_seq;
-	u32 queue_mapping;
-	u64 pkt_len;
+	u32 pkt_len;
 	s64 stack_size;
 	u64 stack[PERF_MAX_STACK_DEPTH];
+	u32 queue_mapping;
+	u32 dev_flags;
+	u8 dev_name[IFNAMSIZ];
+	u32 ifindex;
 	u32 sk_max_ack_backlog;
-	u8 state;
+	u8 sk_state;
 	u8 type;
+	u16 pad0;
+	u32 pad1;
 	char comm[COMPAT_TASK_COMM_LEN];
 };
 
@@ -112,12 +118,13 @@ int bpf_kfree_skb_prog(struct trace_event_raw_kfree_skb *ctx)
 	struct sk_buff *skb	  = ctx->skbaddr;
 	struct perf_event_t *data = NULL;
 	struct sock_common *sk_common;
+	struct net_device *dev;
 	struct tcphdr tcphdr;
 	struct iphdr iphdr;
 	struct sock *sk;
 	u16 protocol = 0;
 	u16 type     = 0;
-	u8 state     = 0;
+	u8 sk_state  = 0;
 
 	/* only for IP && TCP */
 	if (ctx->protocol != ETH_P_IP)
@@ -141,8 +148,8 @@ int bpf_kfree_skb_prog(struct trace_event_raw_kfree_skb *ctx)
 	if ((u8)protocol != IPPROTO_TCP || type != SOCK_STREAM)
 		return 0;
 
-	state = BPF_CORE_READ(sk_common, skc_state);
-	if (state == TCP_CLOSE || state == 0)
+	sk_state = BPF_CORE_READ(sk_common, skc_state);
+	if (sk_state == TCP_CLOSE || sk_state == 0)
 		return 0;
 
 	if (bpf_ratelimited(&rate))
@@ -158,19 +165,30 @@ int bpf_kfree_skb_prog(struct trace_event_raw_kfree_skb *ctx)
 	/* event */
 	data->tgid_pid = bpf_get_current_pid_tgid();
 	bpf_get_current_comm(&data->comm, sizeof(data->comm));
-	data->type	    = TYPE_TCP_COMMON_DROP;
-	data->state	    = state;
-	data->saddr	    = iphdr.saddr;
-	data->daddr	    = iphdr.daddr;
-	data->sport	    = tcphdr.source;
-	data->dport	    = tcphdr.dest;
-	data->seq	    = tcphdr.seq;
-	data->ack_seq	    = tcphdr.ack_seq;
-	data->pkt_len	    = BPF_CORE_READ(skb, len);
-	data->queue_mapping = BPF_CORE_READ(skb, queue_mapping);
-	data->stack_size =
-	    bpf_get_stack(ctx, data->stack, sizeof(data->stack), 0);
+	data->type		 = TYPE_TCP_COMMON_DROP;
+	data->sk_state		 = sk_state;
+	data->saddr		 = iphdr.saddr;
+	data->daddr		 = iphdr.daddr;
+	data->sport		 = tcphdr.source;
+	data->dport		 = tcphdr.dest;
+	data->seq		 = tcphdr.seq;
+	data->ack_seq		 = tcphdr.ack_seq;
+	data->pkt_len		 = BPF_CORE_READ(skb, len);
+	data->queue_mapping	 = BPF_CORE_READ(skb, queue_mapping);
 	data->sk_max_ack_backlog = 0;
+	data->dev_name[0]	 = '-';
+	data->dev_flags		 = 0;
+	data->ifindex		 = 0;
+	data->stack_size =
+		bpf_get_stack(ctx, data->stack, sizeof(data->stack), 0);
+
+	dev = BPF_CORE_READ(skb, dev);
+	if (dev) {
+		data->dev_flags = netif_get_flags(dev);
+		data->ifindex	= BPF_CORE_READ(dev, ifindex);
+		bpf_probe_read_kernel_str(&data->dev_name,
+					  sizeof(data->dev_name), dev->name);
+	}
 
 	bpf_perf_event_output(ctx, &perf_events, COMPAT_BPF_F_CURRENT_CPU, data,
 			      sizeof(*data));

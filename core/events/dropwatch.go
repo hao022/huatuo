@@ -23,6 +23,7 @@ import (
 
 	"huatuo-bamai/internal/bpf"
 	"huatuo-bamai/internal/conf"
+	"huatuo-bamai/internal/linkstatus"
 	"huatuo-bamai/internal/log"
 	"huatuo-bamai/internal/storage"
 	"huatuo-bamai/internal/symbol"
@@ -67,40 +68,48 @@ var typeMap = map[uint8]string{
 }
 
 type perfEventT struct {
-	TgidPid         uint64                              `json:"tgid_pid"`
-	Saddr           uint32                              `json:"saddr"`
-	Daddr           uint32                              `json:"daddr"`
-	Sport           uint16                              `json:"sport"`
-	Dport           uint16                              `json:"dport"`
-	Seq             uint32                              `json:"seq"`
-	AckSeq          uint32                              `json:"ack_seq"`
-	QueueMapping    uint32                              `json:"queue_mapping"`
-	PktLen          uint64                              `json:"pkt_len"`
-	StackSize       int64                               `json:"stack_size"`
-	Stack           [symbol.KsymbolStackMaxDepth]uint64 `json:"stack"`
-	SkMaxAckBacklog uint32                              `json:"sk_max_ack_backlog"`
-	State           uint8                               `json:"state"`
-	Type            uint8                               `json:"type"`
-	Comm            [bpf.TaskCommLen]byte               `json:"comm"`
+	TgidPid            uint64                              `json:"tgid_pid"`
+	Saddr              uint32                              `json:"saddr"`
+	Daddr              uint32                              `json:"daddr"`
+	Sport              uint16                              `json:"sport"`
+	Dport              uint16                              `json:"dport"`
+	Seq                uint32                              `json:"seq"`
+	AckSeq             uint32                              `json:"ack_seq"`
+	PktLen             uint32                              `json:"pkt_len"`
+	StackSize          int64                               `json:"stack_size"`
+	Stack              [symbol.KsymbolStackMaxDepth]uint64 `json:"stack"`
+	NetdevQueueMapping uint32                              `json:"netdev_queue_mapping"`
+	NetdevFlags        uint32                              `json:"netdev_flags"`
+	NetdevName         [bpf.NetdeviceLenSize]byte          `json:"netdev_name"`
+	NetdevIfindex      uint32                              `json:"netdev_ifindex"`
+	SkMaxAckBacklog    uint32                              `json:"sk_max_ack_backlog"`
+	SkState            uint8                               `json:"sk_state"`
+	Type               uint8                               `json:"type"`
+	Pad0               uint16                              `json:"pad0"`
+	Pad1               uint32                              `json:"pad1"`
+	Comm               [bpf.TaskCommLen]byte               `json:"comm"`
 }
 
 type DropWatchTracingData struct {
-	Type          string `json:"type"`
-	Comm          string `json:"comm"`
-	Pid           uint64 `json:"pid"`
-	Saddr         string `json:"saddr"`
-	Daddr         string `json:"daddr"`
-	Sport         uint16 `json:"sport"`
-	Dport         uint16 `json:"dport"`
-	SrcHostname   string `json:"src_hostname"`
-	DestHostname  string `json:"dest_hostname"`
-	MaxAckBacklog uint32 `json:"max_ack_backlog"`
-	Seq           uint32 `json:"seq"`
-	AckSeq        uint32 `json:"ack_seq"`
-	QueueMapping  uint32 `json:"queue_mapping"`
-	PktLen        uint64 `json:"pkt_len"`
-	State         string `json:"state"`
-	Stack         string `json:"stack"`
+	Type               string   `json:"type"`
+	Comm               string   `json:"comm"`
+	Pid                uint64   `json:"pid"`
+	Saddr              string   `json:"saddr"`
+	Daddr              string   `json:"daddr"`
+	Sport              uint16   `json:"sport"`
+	Dport              uint16   `json:"dport"`
+	SrcHostname        string   `json:"src_hostname"`
+	DestHostname       string   `json:"dest_hostname"`
+	MaxAckBacklog      uint32   `json:"max_ack_backlog"`
+	Seq                uint32   `json:"seq"`
+	AckSeq             uint32   `json:"ack_seq"`
+	PktLen             uint32   `json:"pkt_len"`
+	SkState            string   `json:"sk_state"`
+	Stack              string   `json:"stack"`
+	NetdevQueueMapping uint32   `json:"netdev_queue_mapping"`
+	NetdevLinkStatus   []string `json:"netdev_linkstatus"`
+	NetdevName         string   `json:"netdev_name"`
+	NetdevIfindex      uint32   `json:"netdev_ifindex"`
 }
 
 type dropWatchTracing struct{}
@@ -184,22 +193,25 @@ func (c *dropWatchTracing) formatEvent(event *perfEventT) *DropWatchTracingData 
 
 	// tracer data
 	data := &DropWatchTracingData{
-		Type:          typeMap[event.Type],
-		Comm:          bytesutil.ToString(event.Comm[:]),
-		Pid:           event.TgidPid >> 32,
-		Saddr:         saddr,
-		Daddr:         daddr,
-		Sport:         netutil.Ntohs(event.Sport),
-		Dport:         netutil.Ntohs(event.Dport),
-		SrcHostname:   srcHostname,
-		DestHostname:  destHostname,
-		Seq:           netutil.Ntohl(event.Seq),
-		AckSeq:        netutil.Ntohl(event.AckSeq),
-		QueueMapping:  event.QueueMapping,
-		PktLen:        event.PktLen,
-		State:         tcpstateMap[event.State],
-		Stack:         stacks,
-		MaxAckBacklog: event.SkMaxAckBacklog,
+		Type:               typeMap[event.Type],
+		Comm:               bytesutil.ToString(event.Comm[:]),
+		Pid:                event.TgidPid >> 32,
+		Saddr:              saddr,
+		Daddr:              daddr,
+		Sport:              netutil.Ntohs(event.Sport),
+		Dport:              netutil.Ntohs(event.Dport),
+		SrcHostname:        srcHostname,
+		DestHostname:       destHostname,
+		Seq:                netutil.Ntohl(event.Seq),
+		AckSeq:             netutil.Ntohl(event.AckSeq),
+		PktLen:             event.PktLen,
+		SkState:            tcpstateMap[event.SkState],
+		Stack:              stacks,
+		MaxAckBacklog:      event.SkMaxAckBacklog,
+		NetdevQueueMapping: event.NetdevQueueMapping,
+		NetdevName:         bytesutil.ToString(event.NetdevName[:]),
+		NetdevLinkStatus:   linkstatus.FlagsRaw(event.NetdevFlags),
+		NetdevIfindex:      event.NetdevIfindex,
 	}
 
 	log.Debugf(logPrefix+"tracing data: %v", data)
@@ -215,7 +227,7 @@ func (c *dropWatchTracing) ignore(data *DropWatchTracingData) bool {
 	//	3. skb_rbtree_purge/ffffffff963089e0
 	//	4. tcp_fin/ffffffff963ac200
 	//	5. ...
-	if data.State == "CLOSE_WAIT" {
+	if data.SkState == "CLOSE_WAIT" {
 		if len(stack) >= 3 && strings.HasPrefix(stack[2], "skb_rbtree_purge/") {
 			return true
 		}
