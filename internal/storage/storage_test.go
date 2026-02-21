@@ -285,13 +285,15 @@ func TestCreateBaseDocument_NoContainer(t *testing.T) {
 		Hostname: "host",
 	}
 
+	hostname, _ := os.Hostname()
+
 	ts := time.Unix(100, 0)
 	doc := createBaseDocument("cpu", "", ts, map[string]any{"load": 1})
 
 	require.NotNil(t, doc)
 	require.Equal(t, "cpu", doc.TracerName)
 	require.Equal(t, "cn", doc.Region)
-	require.Equal(t, "host", doc.Hostname)
+	require.Equal(t, hostname, doc.Hostname)
 	require.Equal(t, doc.TracerTime, doc.Time)
 	require.Equal(t, map[string]any{"load": 1}, doc.TracerData)
 }
