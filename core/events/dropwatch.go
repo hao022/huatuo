@@ -195,7 +195,7 @@ func (c *dropWatchTracing) formatEvent(event *perfEventT) *DropWatchTracingData 
 	// tracer data
 	data := &DropWatchTracingData{
 		Type:               typeMap[event.Type],
-		Comm:               bytesutil.ToString(event.Comm[:]),
+		Comm:               bytesutil.ToStr(event.Comm[:]),
 		Pid:                event.TgidPid >> 32,
 		Saddr:              saddr,
 		Daddr:              daddr,
@@ -210,7 +210,7 @@ func (c *dropWatchTracing) formatEvent(event *perfEventT) *DropWatchTracingData 
 		Stack:              stacks,
 		MaxAckBacklog:      event.SkMaxAckBacklog,
 		NetdevQueueMapping: event.NetdevQueueMapping,
-		NetdevName:         bytesutil.ToString(event.NetdevName[:]),
+		NetdevName:         bytesutil.ToStr(event.NetdevName[:]),
 		NetdevLinkStatus:   linkstatus.FlagsRaw(event.NetdevFlags),
 		NetdevIfindex:      event.NetdevIfindex,
 		NetCookie:          event.NetCookie,

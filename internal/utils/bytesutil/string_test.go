@@ -63,7 +63,7 @@ func TestToString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ToString(tt.input)
+			result := ToStr(tt.input)
 			if result != tt.expected {
 				t.Errorf("ToString(%q) = %q, want %q", tt.input, result, tt.expected)
 			}
@@ -84,7 +84,7 @@ func FuzzToString(f *testing.F) {
 	f.Fuzz(func(t *testing.T, b []byte) {
 		before, _, _ := bytes.Cut(b, []byte{0})
 		expected := string(before)
-		actual := ToString(b)
+		actual := ToStr(b)
 		if actual != expected {
 			t.Errorf("ToString(%q) = %q, want %q", b, actual, expected)
 		}

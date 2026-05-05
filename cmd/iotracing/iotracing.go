@@ -131,7 +131,7 @@ type IODelayData struct {
 func (data *IOData) FilePathName() string {
 	names := make([]string, 0, len(data.FilePath))
 	for i := len(data.FilePath) - 1; i >= 0; i-- {
-		s := strings.TrimSpace(bytesutil.ToString(data.FilePath[i][:]))
+		s := strings.TrimSpace(bytesutil.ToStr(data.FilePath[i][:]))
 		if s == "" || s == "/" {
 			continue
 		}
@@ -244,7 +244,7 @@ func parseProcFileTable(pid uint32, files *PriorityQueue) ProcFileData {
 		fileStat = append(fileStat, stat)
 
 		if comm == "" {
-			comm = bytesutil.ToString(data.Comm[:])
+			comm = bytesutil.ToStr(data.Comm[:])
 		}
 	}
 
@@ -530,7 +530,7 @@ func mainAction(ctx *cli.Context) error {
 			hostname, _ := executil.HostnameByPid(event.Pid)
 
 			stack := IOStack{
-				Comm:              bytesutil.ToString(event.Comm[:]),
+				Comm:              bytesutil.ToStr(event.Comm[:]),
 				ContainerHostname: hostname,
 				Pid:               event.Pid,
 				Latency:           event.Cost / 1000,

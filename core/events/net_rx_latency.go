@@ -179,7 +179,7 @@ func (c *netRecvLatTracing) Start(ctx context.Context) error {
 			var pid uint64
 			var containerID string
 			if pd.TgidPid != 0 {
-				comm = bytesutil.ToString(pd.Comm[:])
+				comm = bytesutil.ToStr(pd.Comm[:])
 				pid = pd.TgidPid >> 32
 
 				// check if its netns same as host netns

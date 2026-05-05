@@ -21,6 +21,6 @@ import (
 
 func ToBytes(v any) []byte {
 	var buf bytes.Buffer
-	binary.Write(&buf, binary.LittleEndian, v)
+	_ = binary.Write(&buf, binary.LittleEndian, v)
 	return buf.Bytes()
 }

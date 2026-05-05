@@ -138,11 +138,11 @@ func (c *oomCollector) Start(ctx context.Context) error {
 			oomData := &OOMTracingData{
 				TriggerMemcgCSS:    fmt.Sprintf("0x%x", data.TriggerMemcgCSS),
 				TriggerPid:         data.TriggerPid,
-				TriggerProcessName: bytesutil.ToString(data.TriggerProcessName[:]),
+				TriggerProcessName: bytesutil.ToStr(data.TriggerProcessName[:]),
 				TriggerContainerID: cssContainers[data.TriggerMemcgCSS],
 				VictimMemcgCSS:     fmt.Sprintf("0x%x", data.VictimMemcgCSS),
 				VictimPid:          data.VictimPid,
-				VictimProcessName:  bytesutil.ToString(data.VictimProcessName[:]),
+				VictimProcessName:  bytesutil.ToStr(data.VictimProcessName[:]),
 				VictimContainerID:  cssContainers[data.VictimMemcgCSS],
 			}
 

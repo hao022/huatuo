@@ -131,7 +131,7 @@ func (c *memoryReclaimTracing) Start(ctx context.Context) error {
 			// save storage
 			tracingData := &MemoryReclaimTracingData{
 				Pid:       data.Pid,
-				Comm:      bytesutil.ToString(data.Comm[:]),
+				Comm:      bytesutil.ToStr(data.Comm[:]),
 				Deltatime: data.Deltatime,
 			}
 

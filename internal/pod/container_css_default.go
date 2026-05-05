@@ -111,7 +111,7 @@ func cgroupListCssDataByKnode(containerID string) []*containerCssMetaData {
 }
 
 func cgroupUpdateOrCreateCssData(data *containerCssPerfEvent) error {
-	knodeName := bytesutil.ToString(data.KnodeName[:])
+	knodeName := bytesutil.ToStr(data.KnodeName[:])
 	containerID := extractContainerID(knodeName)
 	if containerID == "" {
 		return fmt.Errorf("knode name is not containterID")
@@ -140,7 +140,7 @@ func cgroupUpdateOrCreateCssData(data *containerCssPerfEvent) error {
 }
 
 func cgroupDeleteCssData(data *containerCssPerfEvent) error {
-	knodeName := bytesutil.ToString(data.KnodeName[:])
+	knodeName := bytesutil.ToStr(data.KnodeName[:])
 	containerID := extractContainerID(knodeName)
 	if containerID == "" {
 		return fmt.Errorf("knode name is not containterID")
