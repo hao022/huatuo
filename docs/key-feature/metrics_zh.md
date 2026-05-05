@@ -1197,12 +1197,10 @@ huatuo_bamai_sockstat_sockets_used{host="hostname",region="dev"} 409
 - `d2c`：从驱动层下发到完成，更接近磁盘和驱动本身的耗时
 - `freeze`：磁盘冻结事件次数
 
-当前版本同时提供宿主机维度和容器维度指标。
-
 ### 队列
 
 这些指标都会自动带上公共标签 `host` 和 `region`。其中容器维度指标还会固定带上
-`container_host`、`container_name`、`container_type`、`container_level`、`container_hostnamespace` 这几个容器标签。
+`container_host`、`container_name`、`container_type`、`container_level`、`container_hostnamespace` 标签。
 
 ```bash
 # HELP huatuo_bamai_iolatency_blkdisk_d2c the disk d2c latency
