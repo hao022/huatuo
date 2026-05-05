@@ -61,8 +61,9 @@ type BlkDiskEntry struct {
 // BlkgqEntry stores cgroup latency histogram buckets
 type BlkgqEntry struct {
 	Blkgq   uint64
-	Cgroup  uint64
 	Disk    uint64
+	Major   uint32
+	Minor   uint32
 	Q2CZone [blkLatencyZone]uint64
 	D2CZone [blkLatencyZone]uint64
 }

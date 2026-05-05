@@ -27,7 +27,7 @@ struct bio___compat {
 	struct block_device *bi_bdev;
 } __attribute__((preserve_access_index));
 
-static __always_inline struct gendisk *get_bio_disk(struct bio *bio)
+static __always_inline struct gendisk *bio_disk(struct bio *bio)
 {
 	struct gendisk *disk = NULL;
 
@@ -47,7 +47,7 @@ static __always_inline struct gendisk *get_bio_disk(struct bio *bio)
 	return disk;
 }
 
-static __always_inline u8 get_bio_partno(struct bio *bio)
+static __always_inline u8 bio_partno(struct bio *bio)
 {
 	u8 partno = 0;
 

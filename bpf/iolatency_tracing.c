@@ -16,21 +16,23 @@
 
 char __license[] SEC("license") = "Dual MIT/GPL";
 
+#define LATENCY_ZONE_MAX (6)
+
 struct disk_entry {
 	u64 disk;
 	u32 major;
 	u32 minor;
 	u64 freeze_nr;
-	u64 q2c_zone[6];
-	u64 d2c_zone[6];
+	u64 q2c_zone[LATENCY_ZONE_MAX];
+	u64 d2c_zone[LATENCY_ZONE_MAX];
 };
 
 struct blkgq_entry {
 	u64 blkgq;
-	u64 cgroup;
 	u64 disk;
-	u64 q2c_zone[6];
-	u64 d2c_zone[6];
+	u32 major, minor;
+	u64 q2c_zone[LATENCY_ZONE_MAX];
+	u64 d2c_zone[LATENCY_ZONE_MAX];
 };
 
 struct {
@@ -138,24 +140,43 @@ static __always_inline int d2c_latency_index(struct bio *bio, u64 now)
 }
 
 static __always_inline void
+bio_major_minor_numbers(struct bio *bio, u32 *disk_dev)
+{
+	struct gendisk *disk = bio_disk(bio);
+
+	bpf_probe_read(disk_dev, 2*sizeof(u32), disk);
+
+	disk_dev[1] = disk_dev[1] + bio_partno(bio);
+}
+
+static __always_inline void
 blkcg_latency_account(struct bio *bio, int q2c_index, int d2c_index)
 {
-	struct blkgq_entry *blkgq_entry;
+	struct blkgq_entry *entry;
 	u64 css = (u64)BPF_CORE_READ(bio, bi_blkg, blkcg);
 
 	// userspace updates the map.
-	blkgq_entry = bpf_map_lookup_elem(&blkcg_map, &css);
-	if (!blkgq_entry)
+	entry = bpf_map_lookup_elem(&blkcg_map, &css);
+	if (!entry)
 		return;
 
-	__sync_fetch_and_add(&blkgq_entry->q2c_zone[q2c_index], 1);
-	__sync_fetch_and_add(&blkgq_entry->d2c_zone[d2c_index], 1);
+	if (!entry->major) {
+		u32 disk_dev[2];
+
+		bio_major_minor_numbers(bio, disk_dev);
+
+		entry->major = disk_dev[0];
+		entry->minor = disk_dev[1];
+	}
+
+	__sync_fetch_and_add(&entry->q2c_zone[q2c_index], 1);
+	__sync_fetch_and_add(&entry->d2c_zone[d2c_index], 1);
 }
 
 static __always_inline void
 blkdisk_latency_account(struct bio *bio, int q2c_index, int d2c_index)
 {
-	struct gendisk *disk = get_bio_disk(bio);
+	struct gendisk *disk = bio_disk(bio);
 	struct disk_entry *disk_entry;
 
 	disk_entry = bpf_map_lookup_elem(&blkdisk_map, &disk);
@@ -165,16 +186,15 @@ blkdisk_latency_account(struct bio *bio, int q2c_index, int d2c_index)
 		return;
 	}
 
-	u8 partno = get_bio_partno(bio);
+	/* gendisk.major, gendisk.first_minor */
 	u32 disk_dev[2];
 
-	/* gendisk.major, gendisk.first_minor */
-	bpf_probe_read(disk_dev, sizeof(disk_dev), disk);
+	bio_major_minor_numbers(bio, disk_dev);
 
 	struct disk_entry new_entry = {
 		.disk	  = (u64)disk,
 		.major	  = disk_dev[0],
-		.minor	  = disk_dev[1] + partno,
+		.minor	  = disk_dev[1],
 		.q2c_zone = {},
 		.d2c_zone = {},
 	};

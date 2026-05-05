@@ -53,29 +53,39 @@ func (c *iolatencyTracing) fetchContainerIOlatency() ([]*metric.Data, error) {
 	}
 
 	for _, blkcg := range containersIOdata {
+		diskDev := fmt.Sprintf("%d:%d", blkcg.Major, blkcg.Minor)
+
 		for zone, cnt := range blkcg.Q2CZone {
+			if cnt == 0 {
+				continue
+			}
+
 			container, ok := cssContainers[blkcg.Blkgq]
 			if !ok {
 				continue
 			}
 
 			metrics = append(metrics, metric.NewContainerGaugeData(
-				container, "q2c", float64(cnt),
+				container, "blkdisk_q2c", float64(cnt),
 				"container blkio q2c latency",
-				map[string]string{"zone": strconv.Itoa(zone)},
+				map[string]string{"disk": diskDev, "zone": strconv.Itoa(zone)},
 			))
 		}
 
 		for zone, cnt := range blkcg.D2CZone {
+			if cnt == 0 {
+				continue
+			}
+
 			container, ok := cssContainers[blkcg.Blkgq]
 			if !ok {
 				continue
 			}
 
 			metrics = append(metrics, metric.NewContainerGaugeData(
-				container, "d2c", float64(cnt),
+				container, "blkdisk_d2c", float64(cnt),
 				"container blkio d2c latency",
-				map[string]string{"zone": strconv.Itoa(zone)},
+				map[string]string{"disk": diskDev, "zone": strconv.Itoa(zone)},
 			))
 		}
 	}
@@ -96,7 +106,7 @@ func (c *iolatencyTracing) fetchBlkDiskIOlatency() ([]*metric.Data, error) {
 
 		for zone, cnt := range disk.Q2CZone {
 			metrics = append(metrics, metric.NewGaugeData(
-				"disk_q2c", float64(cnt),
+				"blkdisk_q2c", float64(cnt),
 				"the disk q2c latency",
 				map[string]string{"disk": diskDev, "zone": strconv.Itoa(zone)},
 			))
@@ -104,14 +114,14 @@ func (c *iolatencyTracing) fetchBlkDiskIOlatency() ([]*metric.Data, error) {
 
 		for zone, cnt := range disk.D2CZone {
 			metrics = append(metrics, metric.NewGaugeData(
-				"disk_d2c", float64(cnt),
+				"blkdisk_d2c", float64(cnt),
 				"the disk d2c latency",
 				map[string]string{"disk": diskDev, "zone": strconv.Itoa(zone)},
 			))
 		}
 
 		metrics = append(metrics, metric.NewGaugeData(
-			"disk_freeze", float64(disk.FreezeNr),
+			"blkdisk_freeze", float64(disk.FreezeNr),
 			"the disk freeze event count",
 			map[string]string{"disk": diskDev},
 		))
