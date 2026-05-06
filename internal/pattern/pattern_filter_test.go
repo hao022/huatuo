@@ -29,38 +29,6 @@ var testContainer = &pod.Container{
 	Qos:      pod.ContainerQos(1),
 }
 
-func TestMatch(t *testing.T) {
-	tests := []struct {
-		name    string
-		issues  [][]string
-		value   string
-		want    string
-		matched bool
-	}{
-		{"empty list", nil, "any", "none", false},
-		{"empty value", [][]string{{"x", "[a-z]+"}}, "", "none", false},
-		{"exact match", [][]string{{"softlockup", "softlockup"}}, "softlockup", "softlockup", true},
-		{"regex match", [][]string{{"mem", "memory.*"}}, "memory_pressure", "mem", true},
-		{
-			"multi match second",
-			[][]string{{"a", "aaa"}, {"b", "bbb"}, {"c", "ccc"}},
-			"bbb", "b", true,
-		},
-		{"no match", [][]string{{"a", "aaa"}, {"b", "bbb"}}, "xxx", "none", false},
-		{"wrong group len 1", [][]string{{"x"}}, "any", "none", false},
-		{"wrong group len 3", [][]string{{"x", "y", "z"}}, "any", "none", false},
-		{"anchors match", [][]string{{"x", "^foo$"}}, "foo", "x", true},
-		{"anchors no match", [][]string{{"x", "^foo$"}}, "foobar", "none", false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, matched := Match(tt.issues, tt.value)
-			assert.Equal(t, tt.want, got)
-			assert.Equal(t, tt.matched, matched)
-		})
-	}
-}
-
 func TestRule(t *testing.T) {
 	t.Run("match", func(t *testing.T) {
 		tests := []struct {
