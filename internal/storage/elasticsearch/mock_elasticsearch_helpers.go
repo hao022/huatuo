@@ -22,18 +22,19 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/elastic/go-elasticsearch/v7"
+	elasticsearchgo "github.com/elastic/go-elasticsearch/v7"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
 var origTransport http.RoundTripper // used to save old value
 
-type mockRoundTripper struct {
+// MockRoundTripper is a reusable mock for http.RoundTripper.
+type MockRoundTripper struct {
 	mock.Mock
 }
 
-func (m *mockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+func (m *MockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	args := m.Called(req)
 
 	resp := args.Get(0)
@@ -53,7 +54,8 @@ func (m *mockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) 
 	}
 }
 
-func newMockHTTPResponse(status int, body string, headers map[string]string) *http.Response {
+// NewMockHTTPResponse creates a *http.Response with the given status, body and headers.
+func NewMockHTTPResponse(status int, body string, headers map[string]string) *http.Response {
 	h := http.Header{}
 	for k, v := range headers {
 		h.Set(k, v)
@@ -66,27 +68,35 @@ func newMockHTTPResponse(status int, body string, headers map[string]string) *ht
 	}
 }
 
-// newMockClient create and replace defaultTransport，and return mockRoundTripper
-func newMockClient() http.RoundTripper {
-	origTransport = defaultTransport
-	defaultTransport = &mockRoundTripper{}
-	return defaultTransport
+// NewErrorTransport returns a MockRoundTripper that always returns an error.
+func NewErrorTransport(t *testing.T) *MockRoundTripper {
+	t.Helper()
+	rt := new(MockRoundTripper)
+	rt.On("RoundTrip", mock.Anything).Return(nil, errors.New("simulated network error"))
+	return rt
 }
 
-// closeMockClient restore defaultTransport
+// newMockClient create and replace DefaultTransport，and return MockRoundTripper
+func newMockClient() http.RoundTripper {
+	origTransport = DefaultTransport
+	DefaultTransport = &MockRoundTripper{}
+	return DefaultTransport
+}
+
+// closeMockClient restore DefaultTransport
 func closeMockClient() {
-	defaultTransport = origTransport
+	DefaultTransport = origTransport
 }
 
 // newMockClientForWrite creates a mocked StorageClient for testing Write.
 func newMockClientForWrite(t *testing.T, statusCode int, responseBody string) *StorageClient {
 	t.Helper()
 
-	rt := new(mockRoundTripper)
+	rt := new(MockRoundTripper)
 
 	rt.On("RoundTrip", mock.Anything).
 		Return(func(req *http.Request) *http.Response {
-			return newMockHTTPResponse(
+			return NewMockHTTPResponse(
 				statusCode,
 				responseBody,
 				map[string]string{
@@ -96,12 +106,12 @@ func newMockClientForWrite(t *testing.T, statusCode int, responseBody string) *S
 			)
 		}, nil)
 
-	cfg := elasticsearch.Config{
+	cfg := elasticsearchgo.Config{
 		Addresses: []string{"http://mock"},
 		Transport: rt,
 	}
 
-	client, err := elasticsearch.NewClient(cfg)
+	client, err := elasticsearchgo.NewClient(cfg)
 	if err != nil {
 		t.Fatalf("failed to create es client: %v", err)
 	}
@@ -112,7 +122,7 @@ func newMockClientForWrite(t *testing.T, statusCode int, responseBody string) *S
 
 	return &StorageClient{
 		client: client,
-		index:  defaultIndex,
+		index:  DefaultIndex,
 	}
 }
 
@@ -122,16 +132,16 @@ func newMockClientForWriteWithError(t *testing.T) *StorageClient {
 	t.Helper()
 
 	// Mock transport to simulate network/request errors.
-	rt := new(mockRoundTripper)
+	rt := new(MockRoundTripper)
 	rt.On("RoundTrip", mock.Anything).
 		Return(nil, errors.New("simulated network error"))
 
-	cfg := elasticsearch.Config{
+	cfg := elasticsearchgo.Config{
 		Addresses: []string{"http://mock"},
 		Transport: rt,
 	}
 
-	client, err := elasticsearch.NewClient(cfg)
+	client, err := elasticsearchgo.NewClient(cfg)
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
@@ -140,7 +150,7 @@ func newMockClientForWriteWithError(t *testing.T) *StorageClient {
 
 	return &StorageClient{
 		client: client,
-		index:  defaultIndex,
+		index:  DefaultIndex,
 	}
 }
 
@@ -150,10 +160,10 @@ func newMockClientForWriteWithoutProductCheck(t *testing.T, statusCode int, resp
 	t.Helper()
 
 	// Mock transport to return a non-error HTTP response.
-	rt := new(mockRoundTripper)
+	rt := new(MockRoundTripper)
 	rt.On("RoundTrip", mock.Anything).
 		Return(func(req *http.Request) *http.Response {
-			return newMockHTTPResponse(
+			return NewMockHTTPResponse(
 				statusCode,
 				responseBody,
 				map[string]string{
@@ -162,14 +172,14 @@ func newMockClientForWriteWithoutProductCheck(t *testing.T, statusCode int, resp
 			)
 		}, nil)
 
-	cfg := elasticsearch.Config{
+	cfg := elasticsearchgo.Config{
 		Addresses: []string{"http://mock"},
 		Transport: rt,
 		// Disable product header check triggered by the initial GET / request.
 		UseResponseCheckOnly: true,
 	}
 
-	client, err := elasticsearch.NewClient(cfg)
+	client, err := elasticsearchgo.NewClient(cfg)
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
@@ -178,6 +188,6 @@ func newMockClientForWriteWithoutProductCheck(t *testing.T, statusCode int, resp
 
 	return &StorageClient{
 		client: client,
-		index:  defaultIndex,
+		index:  DefaultIndex,
 	}
 }

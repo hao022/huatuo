@@ -101,7 +101,7 @@ func WriteDocument(index string, doc *types.Document, do IndexRequest) error {
 
 	if res.StatusCode >= 300 {
 		body, _ := io.ReadAll(res.Body)
-		return fmt.Errorf("index document failed with status %d: %s", res.StatusCode, string(body))
+		return fmt.Errorf("index document failed with status: %d, %s", res.StatusCode, string(body))
 	}
 
 	var r map[string]any

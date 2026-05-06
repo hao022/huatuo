@@ -12,51 +12,112 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package elasticsearch
+package opensearch
 
 import (
 	"fmt"
 	"net/http"
 	"testing"
 
+	"huatuo-bamai/internal/storage/elasticsearch"
 	"huatuo-bamai/internal/storage/types"
 
+	"github.com/opensearch-project/opensearch-go/v2"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
+// ---------- Local helpers using exported mock tools ----------
+
+// newMockClientForWrite creates a StorageClient whose transport returns a
+// successful (status code + body) response for any request.
+func newMockClientForWrite(t *testing.T, statusCode int, responseBody string) *StorageClient {
+	t.Helper()
+
+	rt := new(elasticsearch.MockRoundTripper)
+	rt.On("RoundTrip", mock.Anything).
+		Return(func(req *http.Request) *http.Response {
+			return elasticsearch.NewMockHTTPResponse(
+				statusCode,
+				responseBody,
+				map[string]string{
+					"Content-Type": "application/json",
+				},
+			)
+		}, nil)
+
+	cfg := opensearch.Config{
+		Addresses: []string{"http://mock"},
+		Transport: rt,
+	}
+	client, err := opensearch.NewClient(cfg)
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		rt.AssertExpectations(t)
+	})
+
+	return &StorageClient{
+		client: client,
+		index:  elasticsearch.DefaultIndex,
+	}
+}
+
+// newMockClientForWriteWithError creates a StorageClient whose transport
+// always returns a network error.
+func newMockClientForWriteWithError(t *testing.T) *StorageClient {
+	t.Helper()
+
+	rt := elasticsearch.NewErrorTransport(t)
+
+	cfg := opensearch.Config{
+		Addresses: []string{"http://mock"},
+		Transport: rt,
+	}
+	client, err := opensearch.NewClient(cfg)
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		rt.AssertExpectations(t)
+	})
+
+	return &StorageClient{
+		client: client,
+		index:  elasticsearch.DefaultIndex,
+	}
+}
+
+// ---------- Tests ----------
+
 func TestNewStorageClient_Success(t *testing.T) {
-	rt := newMockClient().(*MockRoundTripper)
-	defer closeMockClient()
+	origTransport := elasticsearch.DefaultTransport
+	rt := new(elasticsearch.MockRoundTripper)
+	elasticsearch.DefaultTransport = rt
+	defer func() { elasticsearch.DefaultTransport = origTransport }()
 
 	rt.On("RoundTrip", mock.Anything).
 		Return(
-			//nolint:bodyclose // mock response body, no real network resource to close
-			NewMockHTTPResponse(
+			//nolint:bodyclose
+			elasticsearch.NewMockHTTPResponse(
 				http.StatusOK,
 				`{
 					"name":"mock-node",
 					"cluster_name":"mock-cluster",
 					"cluster_uuid":"abc123",
-					"version":{"number":"7.10.2"},
-					"tagline":"You Know, for Search"
+					"version":{"number":"1.3.0","distribution":"opensearch"}
 				}`,
-				map[string]string{
-					"Content-Type":      "application/json",
-					"X-Elastic-Product": "Elasticsearch",
-				},
+				map[string]string{"Content-Type": "application/json"},
 			),
 			nil,
 		)
 
-	client, err := NewStorageClient("http://mock-es:9200", "", "", "")
+	client, err := NewStorageClient("http://mock-os:9200", "", "", "")
 	require.NoError(t, err)
-	require.Equal(t, DefaultIndex, client.index)
+	require.Equal(t, elasticsearch.DefaultIndex, client.index)
 
 	rt.AssertExpectations(t)
 }
 
-// TestNewStorageClient_InvalidURL tests behavior with malformed or unsupported URL schemes.
 func TestNewStorageClient_InvalidURL(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -82,54 +143,29 @@ func TestNewStorageClient_InvalidURL(t *testing.T) {
 	}
 }
 
-// TestNewStorageClient_MissingElasticHeader tests failure when server does not return X-Elastic-Product header.
-// This is a security check in the official client.
-func TestNewStorageClient_MissingElasticHeader(t *testing.T) {
-	rt := newMockClient().(*MockRoundTripper)
-	defer closeMockClient()
-
-	rt.On("RoundTrip", mock.Anything).
-		Return(
-			//nolint:bodyclose // mock response body, no real network resource to close
-			NewMockHTTPResponse(
-				http.StatusOK,
-				`{"name":"mock","version":{"number":"7.10.2"}}`,
-				nil, // no X-Elastic-Product
-			),
-			nil,
-		)
-
-	_, err := NewStorageClient("http://mock-es:9200", "", "", "")
-	require.Error(t, err)
-
-	rt.AssertExpectations(t)
-}
-
-// TestNewStorageClient_FailOnInfo tests failure when ES returns error status code.
 func TestNewStorageClient_FailOnInfo(t *testing.T) {
-	rt := newMockClient().(*MockRoundTripper)
-	defer closeMockClient()
+	origTransport := elasticsearch.DefaultTransport
+	rt := new(elasticsearch.MockRoundTripper)
+	elasticsearch.DefaultTransport = rt
+	defer func() { elasticsearch.DefaultTransport = origTransport }()
 
 	rt.On("RoundTrip", mock.Anything).
 		Return(
-			//nolint:bodyclose // mock response body, no real network resource to close
-			NewMockHTTPResponse(
+			//nolint:bodyclose
+			elasticsearch.NewMockHTTPResponse(
 				http.StatusInternalServerError,
 				"",
-				map[string]string{
-					"X-Elastic-Product": "Elasticsearch", // has X-Elastic-Product
-				},
+				map[string]string{"Content-Type": "application/json"},
 			),
 			nil,
 		)
 
-	_, err := NewStorageClient("http://mock-es:9200", "", "", "")
+	_, err := NewStorageClient("http://mock-os:9200", "", "", "")
 	require.Error(t, err)
 
 	rt.AssertExpectations(t)
 }
 
-// TestWrite_Success tests successful write operation.
 func TestWrite_Success(t *testing.T) {
 	client := newMockClientForWrite(t, 201, `{"result":"created"}`)
 
@@ -139,12 +175,9 @@ func TestWrite_Success(t *testing.T) {
 	}
 
 	err := client.Write(doc)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 }
 
-// TestWrite_FailStatus tests write failure due to ES status code.
 func TestWrite_FailStatus(t *testing.T) {
 	client := newMockClientForWrite(t, 500, `{"error":"fail"}`)
 
@@ -154,12 +187,9 @@ func TestWrite_FailStatus(t *testing.T) {
 	}
 
 	err := client.Write(doc)
-	if err == nil {
-		t.Fatal("expected error due to ES status code")
-	}
+	require.Error(t, err)
 }
 
-// TestWrite_EmptyDocument tests Write with minimal/empty document fields.
 func TestWrite_EmptyDocument(t *testing.T) {
 	tests := []struct {
 		name string
@@ -174,30 +204,22 @@ func TestWrite_EmptyDocument(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			client := newMockClientForWrite(t, 201, `{"result":"created","_id":"test-id"}`)
-
 			err := client.Write(tt.doc)
 			require.NoError(t, err)
 		})
 	}
 }
 
-// TestWrite_Non200Success tests handling of non-200 but accepted status codes (e.g., 201 Created).
 func TestWrite_Non200Success(t *testing.T) {
-	client := newMockClientForWrite(t, 201, `{"result":"created","_id":"abc123"}`)
+	client := newMockClientForWrite(t, 201, `{"result":"created"}`)
 
 	err := client.Write(&types.Document{TracerID: "id"})
-	if err != nil {
-		t.Fatalf("unexpected error on status 201: %v", err)
-	}
+	require.NoError(t, err)
 }
 
-// The following tests verify Write error handling across different failure stages:
-// JSON marshaling, request execution, response status validation, and response parsing.
 func TestWrite_JSONMarshalError(t *testing.T) {
 	client := &StorageClient{
-		// The es client can be nil because JSON marshal will fail first
-		// and the client won't be used
-		client: nil,
+		client: nil, // client won't be used because marshal fails first
 		index:  "test-index",
 	}
 
@@ -206,7 +228,6 @@ func TestWrite_JSONMarshalError(t *testing.T) {
 	}
 
 	err := client.Write(doc)
-
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "forced marshal error")
 }
@@ -224,7 +245,7 @@ func TestWrite_IndexRequestDoError(t *testing.T) {
 }
 
 func TestWrite_ReturnsErrorStatus(t *testing.T) {
-	client := newMockClientForWriteWithoutProductCheck(t, 300, `{"result":"created","_id":"abc123"}`)
+	client := newMockClientForWrite(t, 300, `{"result":"created"}`)
 
 	err := client.Write(&types.Document{TracerID: "test"})
 	require.Error(t, err)
@@ -239,6 +260,7 @@ func TestWrite_InvalidJSONResponse(t *testing.T) {
 	require.Contains(t, err.Error(), "parse response body")
 }
 
+// badMarshalType helps simulate JSON marshaling errors.
 type badMarshalType struct{}
 
 func (b badMarshalType) MarshalJSON() ([]byte, error) {
