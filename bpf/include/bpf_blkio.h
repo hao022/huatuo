@@ -67,4 +67,13 @@ static __always_inline u8 bio_partno(struct bio *bio)
 	return partno;
 }
 
+static __always_inline void
+bio_major_minor_numbers(struct bio *bio, u32 *disk_dev)
+{
+	struct gendisk *disk = bio_disk(bio);
+
+	bpf_probe_read(disk_dev, 2 * sizeof(u32), disk);
+	disk_dev[1] = disk_dev[1] + bio_partno(bio);
+}
+
 #endif

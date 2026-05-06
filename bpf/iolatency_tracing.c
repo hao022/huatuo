@@ -140,16 +140,6 @@ static __always_inline int d2c_latency_index(struct bio *bio, u64 now)
 }
 
 static __always_inline void
-bio_major_minor_numbers(struct bio *bio, u32 *disk_dev)
-{
-	struct gendisk *disk = bio_disk(bio);
-
-	bpf_probe_read(disk_dev, 2*sizeof(u32), disk);
-
-	disk_dev[1] = disk_dev[1] + bio_partno(bio);
-}
-
-static __always_inline void
 blkcg_latency_account(struct bio *bio, int q2c_index, int d2c_index)
 {
 	struct blkgq_entry *entry;
