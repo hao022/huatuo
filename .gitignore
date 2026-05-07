@@ -1,4 +1,4 @@
 *.o
-
 _output/
 cmd/**/bin/
+**/mock_*_test.go
