@@ -108,16 +108,24 @@ BlackList = ["netdev_hw", "metax_gpu"]
 ```bash
 # Storage configuration
 [Storage]
-    # Elasticsearch Storage
+    # Elasticsearch and OpenSearch Storage
     #
-    # Disable ES storage if any of Address, Username, Password is empty.
-    # Store kernel tracing and event data to Elasticsearch.
+    # Disable ES/OS storage if one of Address, Username, Password is empty.
+    # Store the tracing and events data of linux kernel to ES/OS.
     #
     # - Address
-    # Default address is :9200 of localhost. ...
+    # Default address is :9200 of localhost. Port 9200 is used for all API calls
+    # over HTTP. This includes search and aggregations, monitoring and anything
+    # else that uses a HTTP or HTTPS request. All client libraries will use this port to
+    # talk to Elasticsearch or OpenSearch.
+    # e.g.
+    # http://127.0.0.1:9200
+    # https://127.0.0.1:9200
+    #
+    # Default: :9200
     #
     # - Index
-    # Elasticsearch index, a logical namespace that holds a collection of
+    # Elasticsearch or OpenSearch index, a logical namespace that holds a collection of
     # documents for huatuo-bamai.
     # Default: huatuo_bamai
     #
@@ -132,31 +140,31 @@ BlackList = ["netdev_hw", "metax_gpu"]
         Password = "huatuo-bamai"
 ```
 
-- **Address**: Elasticsearch service address.
+- **Address**: ElasticSearch/OpenSearch service address.
 
   Default: http://127.0.0.1:9200.
 
-  **Description**: Used to store kernel tracing and event data. ES storage is disabled if any of Address, Username, or Password is empty. Port 9200 is the standard HTTP API port for Elasticsearch.
+  **Description**: Used to store kernel tracing and event data. ES/OS storage is disabled if any of Address, Username, or Password is empty. Port 9200 is the standard HTTP/HTTPS API port for ElasticSearch/OpenSearch.
 
-- **Index**: Elasticsearch index name.
+- **Index**: Index name.
 
   Default: huatuo_bamai.
 
   **Description**: Logical namespace for organizing huatuo-bamai tracing and event documents.
 
-- **Username**: ES authentication username.
+- **Username**: Authentication username.
 
   No default value (example uses elastic).
 
   **Description**: Used for Basic Auth.
 
-- **Password**: ES authentication password.
+- **Password**: Authentication password.
 
   No default value (example uses huatuo-bamai).
 
   **Description**: Used together with the username. In production, use a strong password and enable TLS encryption.
 
-**Overall**: ES storage persists kernel tracing and event data for later search and analysis.
+**Overall**: ES/OS storage persists kernel tracing and event data for later search and analysis.
 
 #### 5.2 Local File Storage
 

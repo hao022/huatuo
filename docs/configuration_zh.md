@@ -102,25 +102,29 @@ BlackList = ["netdev_hw", "metax_gpu"]
 
 ### 5. 存储配置
 
-#### 5.1 Elasticsearch 存储
+#### 5.1 ElasticSearch/OpenSearch 存储
 
 ```bash
 # Storage configuration
 [Storage]
-    # Elasticsearch Storage
+    # Elasticsearch and OpenSearch Storage
     #
-    # Disable ES storage if one of Address, Username, Password is empty.
-    # Store the tracing and events data of linux kernel to ES.
+    # Disable ES/OS storage if one of Address, Username, Password is empty.
+    # Store the tracing and events data of linux kernel to ES/OS.
     #
     # - Address
     # Default address is :9200 of localhost. Port 9200 is used for all API calls
     # over HTTP. This includes search and aggregations, monitoring and anything
-    # else that uses a HTTP request. All client libraries will use this port to
-    # talk to Elasticsearch
+    # else that uses a HTTP or HTTPS request. All client libraries will use this port to
+    # talk to Elasticsearch or OpenSearch.
+    # e.g.
+    # http://127.0.0.1:9200
+    # https://127.0.0.1:9200
+    #
     # Default: :9200
     #
     # - Index
-    # Elasticsearch index, a logical namespace that holds a collection of
+    # Elasticsearch or OpenSearch index, a logical namespace that holds a collection of
     # documents for huatuo-bamai.
     # Default: huatuo_bamai
     #
@@ -135,31 +139,31 @@ BlackList = ["netdev_hw", "metax_gpu"]
         Password = "huatuo-bamai"
 ```
 
-- **Address**：Elasticsearch 服务地址。 
+- **Address**：ElasticSearch/OpenSearch 存储服务地址。 
 
-  默认值为 http://127.0.0.1:9200（本地 9200 端口）。 
+  默认值为 http://127.0.0.1:9200。 
 
-  **说明**：用于存储内核追踪和事件数据。如果 Address、Username 或 Password 中任一项为空，则禁用 ES 存储。支持 HTTP 协议，端口 9200 为 Elasticsearch 标准 API 端口。
+  **说明**：用于存储内核追踪和事件数据。如果 Address、Username 或 Password 中任一项为空，则禁用 ES/OS 存储。支持 HTTP/HTTPS 协议。
 
-- **Index**：Elasticsearch 索引名称。
+- **Index**：索引名称。
 
   默认值为 huatuo_bamai。
 
-  **说明**：索引是 Elasticsearch 中文档的逻辑命名空间，用于组织 huatuo-bamai 产生的追踪与事件数据。
+  **说明**：索引是 ElasticSearch/OpenSearch 文档的逻辑命名空间，用于组织 huatuo-bamai 产生的追踪与事件数据。
 
-- **Username**：ES 认证用户名。
+- **Username**：用户名。
 
   无默认值（示例中使用 elastic）。
 
   **说明**：用于 Basic Auth 认证。
 
-- **Password**：ES 认证密码。
+- **Password**：认证密码。
 
   无默认值（示例中使用 huatuo-bamai）。
 
   **说明**：配合用户名进行安全认证。生产环境强烈建议使用强密码并结合 TLS 加密传输。
 
-**整体说明**：ES 存储用于持久化内核追踪和事件数据，便于后续检索与分析。
+**整体说明**：ES/OS 存储用于持久化内核追踪和事件数据，便于后续检索与分析。如果用户不关心 Linux 内核事件、Autotracing 数据则可以关闭该配置。
 
 #### 5.2 本地文件存储
 
