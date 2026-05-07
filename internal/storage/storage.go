@@ -27,6 +27,7 @@ import (
 	"huatuo-bamai/internal/storage/elasticsearch"
 	"huatuo-bamai/internal/storage/localfile"
 	"huatuo-bamai/internal/storage/null"
+	"huatuo-bamai/internal/storage/opensearch"
 	"huatuo-bamai/internal/storage/types"
 )
 
@@ -42,10 +43,10 @@ const (
 )
 
 var (
-	esExporter         Writer = &null.StorageClient{}
-	localFileExporter  Writer = &null.StorageClient{}
-	storageInitCtx     InitContext
-	profilerExporterMu sync.RWMutex
+	elasticSearchExporter Writer = &null.StorageClient{}
+	localFileExporter     Writer = &null.StorageClient{}
+	storageInitCtx        InitContext
+	profilerExporterMu    sync.RWMutex
 )
 
 var containerLookupFunc = pod.ContainerByID
@@ -157,24 +158,37 @@ type InitContext struct {
 	StorageDisabled bool
 }
 
-// InitDefaultClients initializes the default clients, that includes local-file, elasticsearch.
+// InitDefaultClients initializes the default clients
+// that includes local-file, elasticsearch and opensearch.
 func InitDefaultClients(initCtx *InitContext) (err error) {
 	// Storage disabled, directly return
 	if initCtx.StorageDisabled {
-		log.Infof("elasticsearch and local storage diabled, use null device: %+v", initCtx)
+		log.Infof("storage diabled, use null device: %+v", initCtx)
 		return nil
 	}
 
-	// ES client
-	if initCtx.EsAddresses == "" || initCtx.EsUsername == "" || initCtx.EsPassword == "" {
-		log.Warnf("elasticsearch storage config invalid, use null device: %+v", initCtx)
+	// elasticsearch, or opensearch client
+	if initCtx.EsAddresses == "" ||
+		initCtx.EsUsername == "" ||
+		initCtx.EsPassword == "" {
+		log.Warnf("elasticsearch or opensearch config invalid, use null device: %+v", initCtx)
 	} else {
-		esclient, err := elasticsearch.NewStorageClient(initCtx.EsAddresses, initCtx.EsUsername, initCtx.EsPassword, initCtx.EsIndex)
+		esclient, err := elasticsearch.NewStorageClient(initCtx.EsAddresses,
+			initCtx.EsUsername, initCtx.EsPassword, initCtx.EsIndex)
 		if err != nil {
-			return err
-		}
+			log.Warnf("elasticsearch client creation failed: %v, falling back to opensearch", err)
 
-		esExporter = esclient
+			osclient, osErr := opensearch.NewStorageClient(initCtx.EsAddresses,
+				initCtx.EsUsername, initCtx.EsPassword, initCtx.EsIndex)
+			if osErr != nil {
+				return fmt.Errorf("elasticsearch and opensearch clients both failed: ES err: %w, OS err: %w",
+					err, osErr)
+			}
+
+			elasticSearchExporter = osclient
+		} else {
+			elasticSearchExporter = esclient
+		}
 	}
 
 	// Local-file client
@@ -192,7 +206,7 @@ func InitDefaultClients(initCtx *InitContext) (err error) {
 	storageInitCtx = *initCtx
 	storageInitCtx.Hostname, _ = os.Hostname()
 
-	log.Info("InitDefaultClients includes engines: elasticsearch, local-file")
+	log.Info("InitDefaultClients includes engines: elasticsearch (or opensearch), local-file")
 	return nil
 }
 
@@ -226,7 +240,7 @@ func Save(tracerName, containerID string, tracerTime time.Time, tracerData any) 
 	document.TracerRunType = docTracerRunAuto
 
 	// save into es.
-	if err := esExporter.Write(document); err != nil {
+	if err := elasticSearchExporter.Write(document); err != nil {
 		log.Infof("failed to save %#v into es: %v", document, err)
 	}
 
@@ -251,7 +265,7 @@ func SaveTaskOutput(tracerName, tracerID, containerID string, tracerTime time.Ti
 	document.TracerID = tracerID
 
 	// save into es.
-	if err := esExporter.Write(document); err != nil {
+	if err := elasticSearchExporter.Write(document); err != nil {
 		log.Infof("failed to save %#v into es: %v", document, err)
 	}
 }
@@ -274,7 +288,7 @@ func SaveTaskJSONOutput(tracerName, tracerID, containerID string, tracerTime tim
 	document.TracerID = tracerID
 
 	// save into es.
-	if err := esExporter.Write(document); err != nil {
+	if err := elasticSearchExporter.Write(document); err != nil {
 		log.Infof("failed to save %#v into es: %v", document, err)
 	}
 }

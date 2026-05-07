@@ -33,14 +33,14 @@ import (
 // Test Main: Restore global variables uniformly to prevent test pollution.
 func TestMain(m *testing.M) {
 	// Backup original global variables
-	origesExporter := esExporter
+	origesExporter := elasticSearchExporter
 	origLocalExporter := localFileExporter
 	origStorageInitCtx := storageInitCtx
 	origContainerLookup := containerLookupFunc
 
 	// Restore globals after all tests finish
 	defer func() {
-		esExporter = origesExporter
+		elasticSearchExporter = origesExporter
 		localFileExporter = origLocalExporter
 		storageInitCtx = origStorageInitCtx
 		containerLookupFunc = origContainerLookup
@@ -56,7 +56,7 @@ func TestInitDefaultClients_InvalidConfig(t *testing.T) {
 	ctx := &InitContext{}
 	require.NoError(t, InitDefaultClients(ctx))
 
-	require.IsType(t, &null.StorageClient{}, esExporter)
+	require.IsType(t, &null.StorageClient{}, elasticSearchExporter)
 	require.IsType(t, &null.StorageClient{}, localFileExporter)
 }
 
@@ -73,7 +73,7 @@ func TestInitDefaultClients_OnlyLocal(t *testing.T) {
 	require.NoError(t, InitDefaultClients(ctx))
 
 	require.IsType(t, &localfile.StorageClient{}, localFileExporter)
-	require.IsType(t, &null.StorageClient{}, esExporter)
+	require.IsType(t, &null.StorageClient{}, elasticSearchExporter)
 	require.Equal(t, "cn", storageInitCtx.Region)
 }
 
@@ -90,7 +90,7 @@ func TestInitDefaultClients_OnlyES(t *testing.T) {
 
 	require.NoError(t, InitDefaultClients(ctx))
 
-	require.IsType(t, &elasticsearch.StorageClient{}, esExporter)
+	require.IsType(t, &elasticsearch.StorageClient{}, elasticSearchExporter)
 	require.IsType(t, &null.StorageClient{}, localFileExporter)
 }
 
@@ -99,7 +99,7 @@ func TestSave_Success(t *testing.T) {
 	es := NewMockWriter(t)
 	local := NewMockWriter(t)
 
-	esExporter = es
+	elasticSearchExporter = es
 	localFileExporter = local
 
 	matcher := mock.MatchedBy(func(doc *types.Document) bool {
@@ -145,7 +145,7 @@ func TestSave_WriteErrors(t *testing.T) {
 			es := NewMockWriter(t)
 			local := NewMockWriter(t)
 
-			esExporter = es
+			elasticSearchExporter = es
 			localFileExporter = local
 
 			es.On("Write", mock.Anything).Return(tt.esErr).Once()
@@ -173,7 +173,7 @@ func TestSave_ContainerNotExist(t *testing.T) {
 	es := NewMockWriter(t)
 	local := NewMockWriter(t)
 
-	esExporter = es
+	elasticSearchExporter = es
 	localFileExporter = local
 
 	Save("cpu", "bad-id", time.Now(), "data")
@@ -185,7 +185,7 @@ func TestSave_ContainerNotExist(t *testing.T) {
 // TestSaveTaskOutput checks SaveTaskOutput writes the expected task output document.
 func TestSaveTaskOutput_Success(t *testing.T) {
 	es := NewMockWriter(t)
-	esExporter = es
+	elasticSearchExporter = es
 
 	es.On("Write", mock.MatchedBy(func(doc *types.Document) bool {
 		data := doc.TracerData.(*TracerBasicData)
@@ -199,7 +199,7 @@ func TestSaveTaskOutput_Success(t *testing.T) {
 
 func TestSaveTaskOutput_ESWriteErrorLogged(t *testing.T) {
 	es := NewMockWriter(t)
-	esExporter = es
+	elasticSearchExporter = es
 
 	es.On("Write", mock.Anything).Return(errors.New("es write failed")).Once()
 
@@ -213,7 +213,7 @@ func TestSaveTaskOutput_ESWriteErrorLogged(t *testing.T) {
 // TestSaveTaskJSONOutput_Success verifies SaveTaskJSONOutput writes a valid JSON output.
 func TestSaveTaskJSONOutput_Success(t *testing.T) {
 	es := NewMockWriter(t)
-	esExporter = es
+	elasticSearchExporter = es
 
 	es.On("Write", mock.MatchedBy(func(doc *types.Document) bool {
 		m, ok := doc.TracerData.(map[string]any)
@@ -259,7 +259,7 @@ func TestSaveTaskJSONOutput_EdgeCases(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			es := NewMockWriter(t)
-			esExporter = es
+			elasticSearchExporter = es
 
 			if tt.expectWrite {
 				es.On("Write", mock.MatchedBy(tt.matchDocument)).
