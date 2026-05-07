@@ -7,7 +7,7 @@ date: 2026-03-29
 weight: 4
 ---
 
-### 1. Document Overview
+### 1. Overview
 
 `huatuo-bamai` is the core collector of HUATUO (a BPF-based metrics and anomaly inspector). Its configuration file defines the data collection scope, probe enablement strategy, metric output format, anomaly detection rules, and logging behavior.
 
@@ -103,7 +103,7 @@ BlackList = ["netdev_hw", "metax_gpu"]
 
 ### 5. Storage
 
-#### 5.1 Elasticsearch Storage
+#### 5.1 Elasticsearch and OpenSearch Storage
 
 ```bash
 # Storage configuration
