@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/img/huatuo-logo-v4.jpg" alt="Cube Sandbox Logo" width="140" />
+  <img src="docs/img/huatuo-logo-v4.png" alt="Cube Sandbox Logo" width="140" />
 </p>
 
 <h1 align="center">HUATUO 华佗</h1>
@@ -17,7 +17,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/⚡_eBPF-Zero_Instrumentation-blue" alt="Fast startup" />
-  <img src="https://img.shields.io/badge/🔒_Observability-Kernel_Hardware_Level-critical" alt="Hardware-level observability" />
+  <img src="https://img.shields.io/badge/🔒_Observability-Linux_Kernel,_Hardware_Level-critical" alt="Hardware-level observability" />
   <img src="https://img.shields.io/badge/📦_Deploy-Large_Scale-orange" alt="large scale" />
 </p>
 
