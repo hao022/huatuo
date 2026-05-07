@@ -1,53 +1,86 @@
-English | [简体中文](./README_CN.md)
+<p align="center">
+  <img src="docs/img/huatuo-logo-v4.jpg" alt="Cube Sandbox Logo" width="140" />
+</p>
 
-![](/docs/img/huatuo-logo-v3.png)
+<h1 align="center">HUATUO 华佗</h1>
+
+<p align="center">
+  <strong>Kernel-wide Insight, Instant Observability, AutoTracing, Continuous Profiling</strong>
+</p>
+
+<p align="center">
+  <a href="https://github.com/ccfos/huatuo/stargazers"><img src="https://img.shields.io/github/stars/ccfos/huatuo?style=social" alt="GitHub Stars" /></a>
+  <a href="https://github.com/ccfos/huatuo/issues"><img src="https://img.shields.io/github/issues/ccfos/huatuo" alt="GitHub Issues" /></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-green" alt="Apache 2.0 License" /></a>
+  <a href="./CONTRIBUTING.md"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs Welcome" /></a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/⚡_eBPF-Zero_Instrumentation-blue" alt="Fast startup" />
+  <img src="https://img.shields.io/badge/🔒_Observability-Kernel_Hardware_Level-critical" alt="Hardware-level observability" />
+  <img src="https://img.shields.io/badge/📦_Deploy-Large_Scale-orange" alt="large scale" />
+</p>
+
+<p align="center">
+  <a href="./README_CN.md"><strong>中文文档</strong></a> ·
+  <a href="https://docs.huatuo.tech/en/latest/quick-start/"><strong>Quick Start</strong></a> ·
+  <a href="https://docs.huatuo.tech/"><strong>Documentation</strong></a> ·
+</p>
+
+---
 
 # What is HUATUO
 
-**HUATUO** is a cloud-native operating system observability project open-sourced by **DIDI** and incubated under the **CCF**. It focuses on providing deep, kernel-level observability for complex cloud-native. By integrating linux kernel dynamic tracking such as **kprobe**, **tracepoint**, **ftrace** and **eBPF**, it has achieved multi-dimensional kernel observability, such as more refined metrics, kernel runtime exception contexts, and automatic tracking. HUATUO has been deployed at scale in Didi's production environment and plays a critical role in troubleshooting system failure, enhancing the high availability and performance of the cloud-native operating system. Through continuous evolution, HUATUO aims to advance eBPF in observability toward lower overhead and greater efficiency. For more information: [https://huatuo.tech](https://huatuo.tech/)
+**HUATUO** is a cloud-native operating system observability project open-sourced by **DIDI** and incubated under the **CCF**. It delivers kernel-level observability for general-purpose cloud-native computing, AI computing, and bare-metal infrastructure services.
+By integrating Linux kernel dynamic tracing technologies like **kprobe**, **tracepoint**, **ftrace**, and **eBPF**, HUATUO provides kernel-wide insights: finer-grained metrics, automatic context capture from kernel runtime, and intelligent tracing.
+Deployed at scale in Didi’s production environment, HUATUO plays a key role in troubleshooting system failures, enhancing the high availability and performance of cloud-native operating systems.
+
+For more information, visit: [https://huatuo.tech](https://huatuo.tech)
 
 # Key Features
 
-- **Low-Overhead Kernel Observability**: Leverages eBPF to maintain performance overhead below 1%, delivering in-depth, low-level, and comprehensive observability into linux core subsystem, such as memory, cpu scheduling, networking, and block I/O.
-- **Event-Driven Context Capture**: This automatically acquires runtime context by triggering on critical events such as page faults, scheduling delays, and lock contention. Each event generates detailed observable data - including register states, stack traces, task info, and resource usage - for immediate analysis.
-- **AutoTracing**: Leverages heuristic tracking algorithms and automated snapshots for system troubleshooting. This approach resolves performance degradation in complex cloud-native environments, addressing issues such as CPU idle, CPU sys, I/O, and Loadavg.
-- **Continuous Performance Profiling**: A comprehensive and continuous performance profiling of the operating system and applications, covering CPU, Memory, I/O, and Locks. This feature can help applications continuously iterate and release, and plays a key role in stress testing and fault injection.
-- **Distributed Tracing**: Network-centric distributed tracing for service requests, which can map system calls and node relationships. This feature supports cross-node tracing in large-scale distributed systems and provides a comprehensive view of microservice interactions.
-- **Integration with Open Source Ecosystem**: Deeply integrated with other open-source observability stacks, it can automatically associate K8S container tags, annotations, and Linux kernel events, breaking down data silos. Programming the Kernel with eBPF, which is zero instrumentation and programmable.
+- **Kernel-Wide Insight**: Leverages BPF to maintain performance overhead below 1%, delivering full-stack, low-level observability insights into Linux kernel subsystems like MM, CPU scheduling, networking, and block I/O.
+- **Instant Observability**: An event-driven runtime context capture mechanism that instruments kernel slow paths. It automatically triggers on events such as page faults, scheduling delays, generating detailed data for immediate analysis.
+- **AutoTracing**: Employs automated snapshot retention to resolve performance jitters typical in cloud‑native and AI infrastructure environments, tackling issues such as CPU idle drops, CPU sys spikes, I/O surges, and Loadavg spikes.
+- **Continuous Profiling**: A comprehensive and continuous performance profiling of the operating system and applications, covering CPU, Memory, I/O, and Locks. This drives business innovation and plays a key role in Chaos, HA and Stability Engineering.
+- **Distributed Tracing**: Network-centric distributed tracing for service requests, which maps system call hierarchies and node relationships. It provides end-to-end visibility of microservice interactions in large-scale distributed systems.
+- **Ecosystem Integration**: Integration with mainstream open-source observability stacks like Prometheus, Grafana, Pyroscope, and Elasticsearch. It automatically associates K8s container labels/annotations. Achieved through zero-instrumentation, kernel-level programming with eBPF, ensuring broad compatibility across hardware platforms and Linux distributions.
 
-# Software Architecture
+# Big Picture
 
-![](/docs/img/huatuo-arch.png)
+![](/docs/img/hardware-errors-huatuo-framework.png)
 
 # Getting Started
 
 - **Quick Run**
 
-  Use the docker cli to launch the huatuo service:
+  To launch the HUATUO service with Docker:
 
         $ docker run --privileged --cgroupns=host --network=host -v /sys:/sys -v /run:/run huatuo/huatuo-bamai:latest
 
-  Pull the metric on another terminal:
+  To pull metrics from another terminal:
 
         $ curl -s localhost:19704/metrics
 
 - **Quick Setup**
 
-  Launch the Elasticsearch, Prometheus, Grafana, and huatuo services using docker compose. Once the services are running, access [http://localhost:3000](http://localhost:3000/) via your web browser.
+  To launch the full stack (Elasticsearch, Prometheus, Grafana, and huatuo) using Docker Compose:
 
         $ docker compose --project-directory ./build/docker up
 
+  Once running, access the monitoring dashboard at http://localhost:3000.
+
   ![](/docs/img/quickstart-components.png)  
 
-  For more information, please refer to: [Quick Start](/docs/users/en/quick-start.md) or [https://huatuo.tech/quickstart/](https://huatuo.tech/quickstart/)
 
 - **NOTE**
 
-  Do not deploy images with the latest tag to production environment, as this is a development and testing image.
+  Do not deploy images with the latest tag to production environments, as this is a development and testing image. Use a formal release image or binary.
+
 
 # Kernel Versions
 
-Supports kernel versions from 4.18 and later.
+The project supports kernel version 4.18 and later. The following kernel and OS distribution are primarily tested.
 
 | HUATUO | Kernel Version | OS Distribution                               |
 | :----- | :------------- | :-------------------------------------------- |
@@ -61,7 +94,7 @@ Supports kernel versions from 4.18 and later.
 
 # Documentation
 
-For more information, visit [https://huatuo.tech](https://huatuo.tech/)
+For more information, visit [https://docs.huatuo.tech](https://docs.huatuo.tech/)
 
 # Contact Us
 - WeChat Group and Official Account:
