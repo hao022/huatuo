@@ -505,13 +505,6 @@ github.com/opencontainers/image-spec/specs-go/v1
 # github.com/opencontainers/runtime-spec v1.2.0
 ## explicit
 github.com/opencontainers/runtime-spec/specs-go
-# github.com/opensearch-project/opensearch-go v1.1.0
-## explicit; go 1.11
-github.com/opensearch-project/opensearch-go
-github.com/opensearch-project/opensearch-go/internal/version
-github.com/opensearch-project/opensearch-go/opensearchapi
-github.com/opensearch-project/opensearch-go/opensearchtransport
-github.com/opensearch-project/opensearch-go/signer
 # github.com/opensearch-project/opensearch-go/v2 v2.3.0
 ## explicit; go 1.15
 github.com/opensearch-project/opensearch-go/v2
