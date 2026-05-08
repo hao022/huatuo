@@ -1,12 +1,3 @@
-# NOTICE:
-# configMap required: huatuo-bamai-config
-# 1. Prepare the Configuration File, according to your ES and kubelet env to modify it
-#   $ curl -L -o huatuo-bamai.conf https://github.com/ccfos/huatuo/raw/v2.1.0/huatuo-bamai.conf
-# 2. Create the configMap
-#   $ kubectl create configmap huatuo-bamai-config --from-file=./huatuo-bamai.conf
-# 3. Apply the DaemonSet
-#   $ kubectl apply -f huatuo-daemonset.minimal.yaml
-
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -22,10 +13,14 @@ spec:
     metadata:
       labels:
         app: huatuo
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "19704"
+        prometheus.io/path: "/metrics"
     spec:
       containers:
       - name: huatuo
-        image: docker.io/huatuo/huatuo-bamai:v2.1.0
+        image: docker.io/huatuo/huatuo-bamai:latest
         imagePullPolicy: IfNotPresent
         resources:
           limits:
