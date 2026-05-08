@@ -1,5 +1,5 @@
 ---
-title: Docker
+title: Docker Compose
 type: docs
 description: 
 author: HUATUO Team
@@ -7,23 +7,24 @@ date: 2026-01-11
 weight: 1
 ---
 
-## Run Only the Collector
+### Image Download
 
-#### Start the Container
+Image repository: https://hub.docker.com/r/huatuo/huatuo-bamai/tags
 
-```bash
-docker run --privileged --cgroupns=host --network=host -v /sys:/sys -v /proc:/proc -v /run:/run huatuo/huatuo-bamai:latest
-```
-
-> ⚠️ This uses the **default configuration file inside the container**. The internal default configuration does **not** connect to Elasticsearch. For a complete setup, mount your own `huatuo-bamai.conf` using `-v`, and update the config according to your environment (kubelet access, Elasticsearch settings, local log storage path, etc.).
-
-## Deploy All Components (Docker Compose)
-
-For local development and validation, using [Docker Compose](https://docs.docker.com/compose/) is the most convenient approach.  
-You can quickly launch a full environment containing the collector, Elasticsearch, Prometheus, Grafana, and other components.
+### Start a container with Docker
 
 ```bash
-docker compose --project-directory ./build/docker up
+$ docker run --privileged --cgroupns=host --network=host -v /sys:/sys -v /proc:/proc -v /run:/run huatuo/huatuo-bamai:latest
 ```
 
-> It is recommended to install Docker Compose using the **plugin** method: https://docs.docker.com/compose/install/linux/
+> ⚠️ When this method is used, the container relies on the built-in default configuration file. That configuration does not connect to the kubelet or Elasticsearch.
+
+### Start containers with Docker Compose
+
+[Docker Compose](https://docs.docker.com/compose/) allows you to quickly set up a complete local environment where you manage the collector, Elasticsearch, Prometheus, Grafana, and other components yourself.
+
+```bash
+$ docker compose --project-directory ./build/docker up
+```
+
+For Docker Compose installation instructions, see https://docs.docker.com/compose/install/linux/.
