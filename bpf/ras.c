@@ -48,11 +48,10 @@ void event_init(struct report_event *event, u32 type)
  * The over all size of the trace output equals to the last
  * __data_loc_* and the lengh of the string.
  */
-u32 get_event_size(u32 last_data_loc)
+u32 event_size(u32 last_data_loc)
 {
-	u32 size = (last_data_loc & 0xffff) +
-		    ((last_data_loc >> 16) & 0xffff);
-	size = size > 512 ? 512 : size;
+	u32 size = (last_data_loc & 0xffff) + ((last_data_loc >> 16) & 0xffff);
+	size	 = size > 512 ? 512 : size;
 
 	return size;
 }
@@ -89,7 +88,6 @@ void probe_ras_mc_event(struct trace_event_raw_mc_event *ctx)
 {
 	struct report_event *event;
 	int key = 0;
-	u32 size;
 
 	event = bpf_map_lookup_elem(&report_map, &key);
 	if (!event)
@@ -99,9 +97,8 @@ void probe_ras_mc_event(struct trace_event_raw_mc_event *ctx)
 
 	event->corrected = ctx->error_type ? 0 : 1;
 
-	size = get_event_size(ctx->__data_loc_driver_detail);
-
-	bpf_probe_read(event->info, size, ctx);
+	bpf_probe_read(event->info, event_size(ctx->__data_loc_driver_detail),
+		       ctx);
 
 	bpf_perf_event_output(ctx, &ras_event_map, COMPAT_BPF_F_CURRENT_CPU,
 			      event, sizeof(struct report_event));
@@ -112,7 +109,6 @@ void probe_ras_non_standard(struct trace_event_raw_non_standard_event *ctx)
 {
 	struct report_event *event;
 	int key = 0;
-	u32 size;
 
 	event = bpf_map_lookup_elem(&report_map, &key);
 	if (!event)
@@ -120,9 +116,7 @@ void probe_ras_non_standard(struct trace_event_raw_non_standard_event *ctx)
 
 	event_init(event, ERR_APIC_NON_STANDARD);
 
-	size = get_event_size(ctx->__data_loc_buf);
-
-	bpf_probe_read(event->info, size, ctx);
+	bpf_probe_read(event->info, event_size(ctx->__data_loc_buf), ctx);
 
 	bpf_perf_event_output(ctx, &ras_event_map, COMPAT_BPF_F_CURRENT_CPU,
 			      event, sizeof(struct report_event));
@@ -133,7 +127,6 @@ void probe_ras_aer_event(struct trace_event_raw_aer_event *ctx)
 {
 	struct report_event *event;
 	int key = 0;
-	u32 size;
 
 	event = bpf_map_lookup_elem(&report_map, &key);
 	if (!event)
@@ -141,8 +134,7 @@ void probe_ras_aer_event(struct trace_event_raw_aer_event *ctx)
 
 	event_init(event, ERR_AER);
 
-	size = get_event_size(ctx->__data_loc_dev_name);
-	bpf_probe_read(event->info, size, ctx);
+	bpf_probe_read(event->info, event_size(ctx->__data_loc_dev_name), ctx);
 
 	bpf_perf_event_output(ctx, &ras_event_map, COMPAT_BPF_F_CURRENT_CPU,
 			      event, sizeof(struct report_event));
