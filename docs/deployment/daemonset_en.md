@@ -1,5 +1,5 @@
 ---
-title: Daemonset
+title: Kubernetes Daemonset
 type: docs
 description: 
 author: HUATUO Team
@@ -7,98 +7,32 @@ date: 2026-01-11
 weight: 2
 ---
 
-HUATUO provides the simplest DaemonSet deployment option to minimize setup complexity. Deploying the HUATUO collector via DaemonSet involves the following steps:
+This document describes how to deploy the Huatuo collector to a cloud-native cluster using a Kubernetes DaemonSet.
 
-### 1. Download the Collector Configuration File
+### 1. Download the configuration file
 
 ```bash
-curl -L -o huatuo-bamai.conf https://github.com/ccfos/huatuo/raw/main/huatuo-bamai.conf
+$ curl -L -o huatuo-bamai.conf https://github.com/ccfos/huatuo/raw/main/huatuo-bamai.conf
 ```
 
-Modify this configuration file according to your environment, such as kubelet connection settings and Elasticsearch settings.
+### 2. Modify the configuration file
 
-### 2. Create a ConfigMap
+Modify the configuration file according to your actual deployment environment. For example, adjust settings such as the storage backend and the method for obtaining Pod information. For details, see the *Configuration Guide*.
+
+### 3. Create a ConfigMap
 
 ```bash
-kubectl create configmap huatuo-bamai-config --from-file=./huatuo-bamai.conf
+$ kubectl delete configmap huatuo-bamai-config
+$ kubectl create configmap huatuo-bamai-config --from-file=./huatuo-bamai.conf
 ```
 
 ### 3. Deploy the Collector
 
 ```bash
-kubectl apply -f huatuo-daemonset.minimal.yaml
+$ kubectl apply -f https://github.com/ccfos/huatuo/blob/main/build/huatuo-daemonset.minimal.yaml
 ```
 
-Contents of `huatuo-daemonset.minimal.yaml`:
+**Notes:**
 
-```yaml
-apiVersion: apps/v1
-kind: DaemonSet
-metadata:
-  name: huatuo
-  namespace: default
-  labels:
-    app: huatuo
-spec:
-  selector:
-    matchLabels:
-      app: huatuo
-  template:
-    metadata:
-      labels:
-        app: huatuo
-    spec:
-      containers:
-      - name: huatuo
-        image: docker.io/huatuo/huatuo-bamai:latest
-        resources:
-          limits:
-            cpu: '1'
-            memory: 2Gi
-          requests:
-            cpu: 500m
-            memory: 512Mi
-        securityContext:
-          privileged: true
-        volumeMounts:
-        - name: proc
-          mountPath: /proc
-        - name: sys
-          mountPath: /sys
-        - name: run
-          mountPath: /run
-        - name: var
-          mountPath: /var
-        - name: etc
-          mountPath: /etc
-        - name: huatuo-local
-          mountPath: /home/huatuo-bamai/huatuo-local
-        - name: huatuo-bamai-config-volume
-          mountPath: /home/huatuo-bamai/conf/huatuo-bamai.conf
-          subPath: huatuo-bamai.conf
-      volumes:
-      - name: proc
-        hostPath:
-          path: /proc
-      - name: sys
-        hostPath:
-          path: /sys
-      - name: run
-        hostPath:
-          path: /run
-      - name: var
-        hostPath:
-          path: /var
-      - name: etc
-        hostPath:
-          path: /etc
-      - name: huatuo-local
-        hostPath:
-          path: /var/log/huatuo/huatuo-local
-          type: DirectoryOrCreate
-      - name: huatuo-bamai-config-volume
-        configMap:
-          name: huatuo-bamai-config
-      hostNetwork: true
-      hostPID: true
-```
+- In `huatuo-daemonset.minimal.yaml`, the container image uses the `huatuo-bamai:latest` tag by default. For production deployments, replace it with a specific release version image.
+- When using `huatuo-bamai:latest` for testing, verify that the tag points to the latest image. You can remove the old image and pull it again by running `docker image rm huatuo/huatuo-bamai:latest`.
