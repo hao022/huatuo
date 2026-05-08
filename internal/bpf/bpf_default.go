@@ -195,7 +195,7 @@ func loadBpfFromReader(bpfName string, rd io.ReaderAt, consts map[string]any) (B
 		b.programName2IDs[p.name] = id
 	}
 
-	log.Infof("loaded bpf: %s", b)
+	log.Debugf("loaded bpf: %s", b)
 
 	// auto clean
 	runtime.SetFinalizer(b, (*defaultBPF).Close)
@@ -398,7 +398,7 @@ func (b *defaultBPF) attachKprobe(progID uint32, symbol string, isRetprobe bool)
 		}
 
 		spec.links[linkKey] = l
-		log.Infof("attach kprobe %s in %v, links: %v", symbol, spec.bProg, spec.links)
+		log.Debugf("attach kprobe %s in %v, links: %v", symbol, spec.bProg, spec.links)
 	} else { // kretprobe
 		linkKey := symbol
 		if _, ok := spec.links[linkKey]; ok {
@@ -411,7 +411,7 @@ func (b *defaultBPF) attachKprobe(progID uint32, symbol string, isRetprobe bool)
 		}
 
 		spec.links[linkKey] = l
-		log.Infof("attach kretprobe %s in %v, links: %v", symbol, spec.bProg, spec.links)
+		log.Debugf("attach kretprobe %s in %v, links: %v", symbol, spec.bProg, spec.links)
 	}
 
 	return nil
@@ -431,7 +431,7 @@ func (b *defaultBPF) attachTracepoint(progID uint32, system, symbol string) erro
 	}
 
 	spec.links[linkKey] = l
-	log.Infof("attach tracepoint %s/%s in %v, links: %v", system, symbol, spec.bProg, spec.links)
+	log.Debugf("attach tracepoint %s/%s in %v, links: %v", system, symbol, spec.bProg, spec.links)
 	return nil
 }
 
@@ -452,7 +452,7 @@ func (b *defaultBPF) attachRawTracepoint(progID uint32, symbol string) error {
 	}
 
 	spec.links[linkKey] = l
-	log.Infof("attach raw tracepoint %s in %v, links: %v", symbol, spec.bProg, spec.links)
+	log.Debugf("attach raw tracepoint %s in %v, links: %v", symbol, spec.bProg, spec.links)
 	return nil
 }
 
@@ -489,7 +489,7 @@ func (b *defaultBPF) Detach() error {
 	for _, spec := range b.programSpecs {
 		for _, l := range spec.links {
 			err := l.Close()
-			log.Infof("detach %s in %v: %v", spec.sectionName, spec.bProg, err)
+			log.Debugf("detach %s in %v: %v", spec.sectionName, spec.bProg, err)
 		}
 	}
 
@@ -512,7 +512,7 @@ func (b *defaultBPF) EventPipe(ctx context.Context, mapID, perCPUBuffer uint32) 
 		return nil, err
 	}
 
-	log.Infof("event-pipe %d, perCPUBuffer %d", mapID, perCPUBuffer)
+	log.Debugf("event-pipe %d, perCPUBuffer %d", mapID, perCPUBuffer)
 	return reader, nil
 }
 
@@ -533,7 +533,7 @@ func (b *defaultBPF) AttachAndEventPipe(ctx context.Context, mapName string, per
 		return nil, err
 	}
 
-	log.Infof("attach and event-pipe %s, perCPUBuffer %d", mapName, perCPUBuffer)
+	log.Debugf("attach and event-pipe %s, perCPUBuffer %d", mapName, perCPUBuffer)
 	return reader, nil
 }
 
@@ -560,7 +560,7 @@ func (b *defaultBPF) WriteMapItems(mapID uint32, items []MapItem) error {
 		if err := m.Update(item.Key, item.Value, ebpf.UpdateAny); err != nil {
 			return fmt.Errorf("map %d, key %v: update: %w", mapID, item.Key, err)
 		}
-		log.Infof("write map %d, key %v, value %v", mapID, item.Key, item.Value)
+		log.Debugf("write map %d, key %v, value %v", mapID, item.Key, item.Value)
 	}
 	return nil
 }
@@ -573,7 +573,7 @@ func (b *defaultBPF) DeleteMapItems(mapID uint32, keys [][]byte) error {
 		if err := m.Delete(k); err != nil {
 			return fmt.Errorf("map %d, key %v: delete: %w", mapID, k, err)
 		}
-		log.Infof("delete map %d, key %v", mapID, k)
+		log.Debugf("delete map %d, key %v", mapID, k)
 	}
 	return nil
 }
