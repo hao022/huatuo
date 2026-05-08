@@ -115,14 +115,15 @@ func (c *netRecvLatTracing) Start(ctx context.Context) error {
 	if toNetIf == 0 || toTCPV4 == 0 || toUserCopy == 0 {
 		return fmt.Errorf("net_rx_latency threshold [%v %v %v]ms invalid", toNetIf, toTCPV4, toUserCopy)
 	}
-	log.Infof("net_rx_latency start, latency threshold [%v %v %v]ms", toNetIf, toTCPV4, toUserCopy)
+
+	log.Debugf("net_rx_latency start, latency threshold [%v %v %v]ms", toNetIf, toTCPV4, toUserCopy)
 
 	monoWallOffset, err := estMonoWallOffset()
 	if err != nil {
 		return fmt.Errorf("estimate monoWallOffset failed: %w", err)
 	}
 
-	log.Infof("net_rx_latency offset of mono to walltime: %v ns", monoWallOffset)
+	log.Debugf("net_rx_latency offset of mono to walltime: %v ns", monoWallOffset)
 
 	// Enable skb software RX timestamps before starting the tracer.
 	tsfd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_DGRAM, 0)

@@ -20,6 +20,7 @@ import (
 	"slices"
 	"sync"
 
+	"huatuo-bamai/internal/log"
 	"huatuo-bamai/pkg/types"
 )
 
@@ -85,6 +86,8 @@ func NewRegister(blackListed []string) (map[string]*EventTracingAttr, error) {
 
 			tracingStatusCache[name] = statusActive
 			tracingMap[name] = attr
+
+			log.Infof("register tracing or metric collector: %s", name)
 		}
 
 		tracingEventAttrCache = tracingMap

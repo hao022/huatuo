@@ -423,7 +423,7 @@ func kubeletUpdateContainer(containerID string, container *corev1.Container, con
 	// create container life resources
 	createContainerLifeResources(containers[containerID])
 
-	log.Infof("update container %#v", containers[containerID])
+	log.Debugf("update container %#v", containers[containerID])
 	return nil
 }
 

@@ -122,7 +122,6 @@ func mainAction(ctx *cli.Context) error {
 		return err
 	}
 
-	log.Infof("Initialize the Metrics collector: %v", prom)
 	handlers.Start(config.Get().APIServer.TCPAddr, mgr, prom)
 
 	// update cpu quota
@@ -135,15 +134,17 @@ func mainAction(ctx *cli.Context) error {
 
 	if ctx.Bool("dry-run") {
 		time.Sleep(2 * time.Second)
-		log.Infof("huatuo-bamai exit gracefully by syscall.SIGTERM")
+		log.Infof("huatuo-bamai exited gracefully by syscall.SIGTERM")
 		_ = syscall.Kill(syscall.Getpid(), syscall.SIGTERM)
 	}
+
+	log.Infof("huatuo-bamai now starting success")
 
 	for {
 		s := <-waitExit
 		switch s {
 		case syscall.SIGQUIT, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM:
-			log.Infof("huatuo-bamai exit by signal %d", s)
+			log.Infof("huatuo-bamai exited by signal %d", s)
 			_ = mgr.Stop()
 			bpf.Close()
 			pod.ManagerRelease()

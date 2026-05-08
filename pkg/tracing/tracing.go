@@ -69,7 +69,7 @@ func (c *EventTracing) Start() error {
 		}
 
 		c.isRunning = false
-		log.Infof("%s: tracing goroutine exited", c.name)
+		log.Infof("tracing exited: %s", c.name)
 	}()
 
 	log.Infof("start tracing %s", c.name)

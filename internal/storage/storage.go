@@ -206,7 +206,7 @@ func InitDefaultClients(initCtx *InitContext) (err error) {
 	storageInitCtx = *initCtx
 	storageInitCtx.Hostname, _ = os.Hostname()
 
-	log.Info("InitDefaultClients includes engines: elasticsearch (or opensearch), local-file")
+	log.Info("storage engines: elasticsearch (or opensearch), local-file")
 	return nil
 }
 
