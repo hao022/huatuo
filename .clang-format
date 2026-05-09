@@ -34,3 +34,5 @@ PenaltyReturnTypeOnItsOwnLine: 10
 BreakAfterReturnType: Automatic
 BinPackParameters: true
 AllowAllArgumentsOnNextLine: false
+AlignConsecutiveMacros: true
+AlignConsecutiveDeclarations: false
