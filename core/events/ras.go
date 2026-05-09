@@ -137,6 +137,31 @@ func ErrType(corrected uint32) string {
 	return ErrTypeUncorrected
 }
 
+// acpiErrType maps an ACPI non-standard event severity to an error type.
+// 1. < 2 is corrected
+// 2. anything else is recoverable/panic.
+func acpiErrType(sev uint8) string {
+	if sev < 2 {
+		return ErrTypeCorrected
+	}
+	return ErrTypeRecovPanic
+}
+
+// aerErrType maps a PCIe AER severity value to an error type.
+// 2 = correctable
+// 1 = fatal
+// 0 = uncorrectable
+func aerErrType(severity uint8) string {
+	switch severity {
+	case 2:
+		return ErrTypeCorrected
+	case 1:
+		return ErrTypeFatal
+	default:
+		return ErrTypeUncorrected
+	}
+}
+
 // ---------------------------------------------------------------------------
 // PCI AER error status bits (PCIe Base Spec §7.8.4)
 // ---------------------------------------------------------------------------
@@ -205,19 +230,29 @@ var aerUncorrectableErrors = map[uint32]string{
 	PciErrUncTlpPre:    "TLP Prefix Blocked Error",
 }
 
-func pciErr(statusBit uint32, correctable bool) string {
-	var m map[uint32]string
+func pciErrReason(status uint32, correctable bool) string {
+	m := aerUncorrectableErrors
 	if correctable {
 		m = aerCorrectableErrors
-	} else {
-		m = aerUncorrectableErrors
 	}
-
-	if name, ok := m[statusBit]; ok {
+	if name, ok := m[status]; ok {
 		return name
 	}
-
 	return "unknown"
+}
+
+func newRasTracingData(ev *rasEvent, device, event, errType string, info any) (*RasTracingData, error) {
+	b, err := json.Marshal(info)
+	if err != nil {
+		return nil, fmt.Errorf("marshal %s info: %w", event, err)
+	}
+	return &RasTracingData{
+		Timestamp: ev.Timestamp,
+		Device:    device,
+		Event:     event,
+		ErrType:   errType,
+		Info:      string(b),
+	}, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -252,19 +287,7 @@ func buildRasMceTracerData(data *rasEvent) (*RasTracingData, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parse MCE payload: %w", err)
 	}
-
-	infoBytes, err := json.Marshal(payload)
-	if err != nil {
-		return nil, fmt.Errorf("marshal mce payload: %w", err)
-	}
-
-	return &RasTracingData{
-		Timestamp: data.Timestamp,
-		Device:    "CPU/MEM",
-		Event:     "MCE",
-		ErrType:   ErrType(data.Corrected),
-		Info:      string(infoBytes),
-	}, nil
+	return newRasTracingData(data, "CPU/MEM", "MCE", ErrType(data.Corrected), payload)
 }
 
 func buildRasEdacTracerData(data *rasEvent) (*RasTracingData, error) {
@@ -295,11 +318,7 @@ func buildRasEdacTracerData(data *rasEvent) (*RasTracingData, error) {
 
 	const edacBase uint32 = 60
 	dyn := payload.MsgDetail[:]
-	msg := extractCString(dyn, payload.ErrorMsgOffset, edacBase)
-	label := extractCString(dyn, payload.LabelOffset, edacBase)
-	driver := extractCString(dyn, payload.DriverDetail, edacBase)
-
-	info := struct {
+	return newRasTracingData(data, "MEM", "EDAC", ErrType(data.Corrected), struct {
 		ErrCount uint16 `json:"err_count"`
 		ErrType  string `json:"err_type"`
 		Msg      string `json:"err_msg"`
@@ -315,8 +334,8 @@ func buildRasEdacTracerData(data *rasEvent) (*RasTracingData, error) {
 	}{
 		ErrCount: payload.ErrCount,
 		ErrType:  ErrType(data.Corrected),
-		Msg:      msg,
-		Label:    label,
+		Msg:      extractCString(dyn, payload.ErrorMsgOffset, edacBase),
+		Label:    extractCString(dyn, payload.LabelOffset, edacBase),
 		McIndex:  payload.McIndex,
 		TopLayer: payload.TopLayer,
 		MidLayer: payload.MidLayer,
@@ -324,21 +343,8 @@ func buildRasEdacTracerData(data *rasEvent) (*RasTracingData, error) {
 		Addr:     payload.Addr,
 		Grain:    uint64(1) << payload.GrainBits,
 		Syndrome: payload.Syndrome,
-		Driver:   driver,
-	}
-
-	infoBytes, err := json.Marshal(info)
-	if err != nil {
-		return nil, fmt.Errorf("marshal EDAC payload: %w", err)
-	}
-
-	return &RasTracingData{
-		Timestamp: data.Timestamp,
-		Device:    "MEM",
-		Event:     "EDAC",
-		ErrType:   ErrType(data.Corrected),
-		Info:      string(infoBytes),
-	}, nil
+		Driver:   extractCString(dyn, payload.DriverDetail, edacBase),
+	})
 }
 
 func buildRasAcpiTracerData(data *rasEvent) (*RasTracingData, error) {
@@ -370,12 +376,7 @@ func buildRasAcpiTracerData(data *rasEvent) (*RasTracingData, error) {
 		rawData = bytes.Clone(payload.Msg[absOff-nonStandardBase : absOff-nonStandardBase+payload.Len])
 	}
 
-	errType := ErrTypeRecovPanic
-	if payload.Sev < 2 {
-		errType = ErrTypeCorrected
-	}
-
-	info := struct {
+	return newRasTracingData(data, "ACPI", "NON_STANDARD", acpiErrType(payload.Sev), struct {
 		Severity uint8  `json:"severity"`
 		SecType  string `json:"sec_type"`
 		FruID    string `json:"fru_id"`
@@ -389,20 +390,7 @@ func buildRasAcpiTracerData(data *rasEvent) (*RasTracingData, error) {
 		FruText:  fru,
 		DataLen:  payload.Len,
 		RawData:  fmt.Sprintf("% x", rawData),
-	}
-
-	infoBytes, err := json.Marshal(info)
-	if err != nil {
-		return nil, fmt.Errorf("marshal ACPI non-standard payload: %w", err)
-	}
-
-	return &RasTracingData{
-		Timestamp: data.Timestamp,
-		Device:    "ACPI",
-		Event:     "NON_STANDARD",
-		ErrType:   errType,
-		Info:      string(infoBytes),
-	}, nil
+	})
 }
 
 func buildRasAerTracerData(data *rasEvent) (*RasTracingData, error) {
@@ -426,28 +414,17 @@ func buildRasAerTracerData(data *rasEvent) (*RasTracingData, error) {
 	const aerBase uint32 = 36
 	dev := extractCString(payload.Msg[:], payload.DevNameOffset, aerBase)
 
-	var errReason, errType string
-	if payload.Severity == 2 {
-		errReason = pciErr(payload.Status, true)
-		errType = ErrTypeCorrected
-	} else {
-		errReason = pciErr(payload.Status, false)
-		errType = ErrTypeUncorrected
-		if payload.Severity == 1 {
-			errType = ErrTypeFatal
-		}
-	}
+	errType := aerErrType(payload.Severity)
+	errReason := pciErrReason(payload.Status, payload.Severity == 2)
 
 	tlpHeader := "not available"
 	if payload.TlpHeaderValid != 0 {
 		tlpHeader = fmt.Sprintf("{%#x,%#x,%#x,%#x}",
-			payload.TlpHeader[0],
-			payload.TlpHeader[1],
-			payload.TlpHeader[2],
-			payload.TlpHeader[3])
+			payload.TlpHeader[0], payload.TlpHeader[1],
+			payload.TlpHeader[2], payload.TlpHeader[3])
 	}
 
-	info := struct {
+	return newRasTracingData(data, "PCIe "+dev, "AER", errType, struct {
 		DevName   string `json:"dev_name"`
 		ErrType   string `json:"err_type"`
 		ErrReason string `json:"err_reason"`
@@ -457,20 +434,7 @@ func buildRasAerTracerData(data *rasEvent) (*RasTracingData, error) {
 		ErrType:   errType,
 		ErrReason: errReason,
 		TlpHeader: tlpHeader,
-	}
-
-	infoBytes, err := json.Marshal(info)
-	if err != nil {
-		return nil, fmt.Errorf("marshal PCIe AER payload: %w", err)
-	}
-
-	return &RasTracingData{
-		Timestamp: data.Timestamp,
-		Device:    fmt.Sprintf("PCIe %s", dev),
-		Event:     "AER",
-		ErrType:   errType,
-		Info:      string(infoBytes),
-	}, nil
+	})
 }
 
 func dispatchRasTracerData(data *rasEvent) (*RasTracingData, error) {
