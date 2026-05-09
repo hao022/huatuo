@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
@@ -225,25 +226,26 @@ func pciErr(statusBit uint32, correctable bool) string {
 
 func buildRasMceTracerData(data *rasEvent) (*RasTracingData, error) {
 	// tracepointMcePayload mirrors struct trace_event_raw_mce_record.
+	// https://git.kernel.org/pub/scm/linux/kernel/git/netdev/net-next.git/tree/arch/x86/include/uapi/asm/mce.h
 	type tracepointMcePayload struct {
-		Pad       uint64
-		Mcgcap    uint64
-		McgStatus uint64
-		Status    uint64
-		Addr      uint64
-		Misc      uint64
-		Synd      uint64
-		Ipid      uint64
-		Ip        uint64
-		Tsc       uint64
-		Walltime  uint64
-		Cpu       uint32
-		Cpuid     uint32
-		Apicid    uint32
-		Socketid  uint32
-		Cs        uint8
-		Bank      uint8
-		Cpuvendor uint8
+		Pad       uint64 `json:"-"`
+		Mcgcap    uint64 `json:"mcg_cpu_cap"`
+		McgStatus uint64 `json:"mcg_msr_status"`
+		Status    uint64 `json:"banks_msr_status"`
+		Addr      uint64 `json:"banks_msr_addr"`
+		Misc      uint64 `json:"banks_msr_misc"`
+		Synd      uint64 `json:"mca_synd_msr"`
+		Ipid      uint64 `json:"mca_ipid_msr"`
+		Ip        uint64 `json:"instr_pointer"`
+		Tsc       uint64 `json:"tsc_timestamp"`
+		Walltime  uint64 `json:"walltime"`
+		Cpu       uint32 `json:"cpu"`
+		Cpuid     uint32 `json:"cpuid"`
+		Apicid    uint32 `json:"apicid"`
+		Socketid  uint32 `json:"socketid"`
+		Cs        uint8  `json:"code_seg"`
+		Bank      uint8  `json:"bank"`
+		Cpuvendor uint8  `json:"cpuvendor"`
 	}
 
 	payload, err := decodePayload[tracepointMcePayload](data.Info[:])
@@ -251,24 +253,17 @@ func buildRasMceTracerData(data *rasEvent) (*RasTracingData, error) {
 		return nil, fmt.Errorf("parse MCE payload: %w", err)
 	}
 
+	infoBytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("marshal mce payload: %w", err)
+	}
+
 	return &RasTracingData{
 		Timestamp: data.Timestamp,
 		Device:    "CPU/MEM",
 		Event:     "MCE",
 		ErrType:   ErrType(data.Corrected),
-		Info: fmt.Sprintf(
-			"CPU: %d, MCGc/s: %x/%x, MC%d: %016x, "+
-				"IPID: %016x, ADDR/MISC/SYND: %016x/%016x/%016x, "+
-				"RIP: %02x:<%016x>, TSC: %x, PROCESSOR: %x:%x, "+
-				"TIME: %d, SOCKET: %x, APIC: %x",
-			payload.Cpu, payload.Mcgcap, payload.McgStatus,
-			payload.Bank, payload.Status,
-			payload.Ipid, payload.Addr, payload.Misc,
-			payload.Synd, payload.Cs, payload.Ip,
-			payload.Tsc, payload.Cpuvendor,
-			payload.Cpuid, payload.Walltime,
-			payload.Socketid, payload.Apicid,
-		),
+		Info:      string(infoBytes),
 	}, nil
 }
 
