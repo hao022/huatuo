@@ -115,7 +115,7 @@ func decodePayload[T any](info []byte) (*T, error) {
 	return &payload, nil
 }
 
-func extractCString(buf []byte, rawOffset uint32, base uint32) string {
+func cstring(buf []byte, rawOffset, base uint32) string {
 	absOff := rawOffset & 0xffff
 	if absOff < base {
 		return ""
@@ -334,8 +334,8 @@ func buildRasEdacTracerData(data *rasEvent) (*RasTracingData, error) {
 	}{
 		ErrCount: payload.ErrCount,
 		ErrType:  ErrType(data.Corrected),
-		Msg:      extractCString(dyn, payload.ErrorMsgOffset, edacBase),
-		Label:    extractCString(dyn, payload.LabelOffset, edacBase),
+		Msg:      cstring(dyn, payload.ErrorMsgOffset, edacBase),
+		Label:    cstring(dyn, payload.LabelOffset, edacBase),
 		McIndex:  payload.McIndex,
 		TopLayer: payload.TopLayer,
 		MidLayer: payload.MidLayer,
@@ -343,7 +343,7 @@ func buildRasEdacTracerData(data *rasEvent) (*RasTracingData, error) {
 		Addr:     payload.Addr,
 		Grain:    uint64(1) << payload.GrainBits,
 		Syndrome: payload.Syndrome,
-		Driver:   extractCString(dyn, payload.DriverDetail, edacBase),
+		Driver:   cstring(dyn, payload.DriverDetail, edacBase),
 	})
 }
 
@@ -368,7 +368,7 @@ func buildRasAcpiTracerData(data *rasEvent) (*RasTracingData, error) {
 	}
 
 	const nonStandardBase uint32 = 56
-	fru := extractCString(payload.Msg[:], payload.FruTxtOffset, nonStandardBase)
+	fru := cstring(payload.Msg[:], payload.FruTxtOffset, nonStandardBase)
 
 	// Extract raw bytes at the FRU text location for the hex dump.
 	var rawData []byte
@@ -412,7 +412,7 @@ func buildRasAerTracerData(data *rasEvent) (*RasTracingData, error) {
 	}
 
 	const aerBase uint32 = 36
-	dev := extractCString(payload.Msg[:], payload.DevNameOffset, aerBase)
+	dev := cstring(payload.Msg[:], payload.DevNameOffset, aerBase)
 
 	errType := aerErrType(payload.Severity)
 	errReason := pciErrReason(payload.Status, payload.Severity == 2)
