@@ -7,13 +7,13 @@
 
 char __license[] SEC("license") = "Dual MIT/GPL";
 
-#define HW_ERR_MCE 0
-#define HW_ERR_EDAC 1
+#define HW_ERR_MCE	    0
+#define HW_ERR_EDAC	    1
 #define HW_ERR_NON_STANDARD 2
-#define HW_ERR_AER_EVENT 3
+#define HW_ERR_AER_EVENT    3
 
 #define MCI_STATUS_DEFERRED (1ULL << 44)
-#define MCI_STATUS_UC (1ULL << 61)
+#define MCI_STATUS_UC	    (1ULL << 61)
 
 struct event {
 	u32 type;
@@ -22,79 +22,94 @@ struct event {
 	u8 info[512];
 };
 
-// the map use for storing struct event memory
+/* Per-CPU scratch buffer used to build events without consuming stack space. */
 struct {
 	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
-	__uint(key_size, sizeof(u32)); // key = 0
+	__uint(key_size, sizeof(u32));
 	__uint(value_size, sizeof(struct event));
 	__uint(max_entries, 1);
 } event_data_map SEC(".maps");
 
-// the event map use for report userspace
+/* Perf-event array for delivering events to userspace. */
 struct {
 	__uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
 	__uint(key_size, sizeof(int));
 	__uint(value_size, sizeof(u32));
 } ras_event_map SEC(".maps");
 
-void event_init(struct event *event, u32 type)
+/*
+ * event_init - initialise a per-CPU event slot.
+ *
+ * Zero the entire struct so that fields not explicitly set by a given probe
+ * (e.g. corrected for AER / non-standard events) do not carry stale values
+ * from a previous invocation on the same CPU.
+ */
+static __always_inline void event_init(struct event *event, u32 type)
 {
+	__builtin_memset(event, 0, sizeof(*event));
 	event->timestamp = bpf_ktime_get_ns();
 	event->type	 = type;
-	__builtin_memset(event->info, 0, sizeof(event->info));
 }
 
 /*
- * The over all size of the trace output equals to the last
- * __data_loc_* and the lengh of the string.
+ * event_size - compute the byte size of a tracepoint's dynamic payload.
+ *
+ * A Linux __data_loc field encodes the absolute byte offset of the dynamic
+ * data in the low 16 bits and its length in the high 16 bits; the total
+ * span (offset + length) gives the number of bytes that must be read from
+ * the tracepoint context, clamped to 512.
  */
-u32 event_size(u32 last_data_loc)
+static __always_inline u32 event_size(u32 data_loc)
 {
-	u32 size = (last_data_loc & 0xffff) + ((last_data_loc >> 16) & 0xffff);
-	size	 = size > 512 ? 512 : size;
-
-	return size;
+	u32 size = (data_loc & 0xffff) + ((data_loc >> 16) & 0xffff);
+	return size > 512 ? 512 : size;
 }
 
 #ifdef __TARGET_ARCH_x86
 SEC("tracepoint/mce/mce_record")
-void probe_mce_record(struct trace_event_raw_mce_record *ctx)
+int probe_mce_record(struct trace_event_raw_mce_record *ctx)
 {
-	int key = 0;
 	struct event *event;
+	int key = 0;
 
 	event = bpf_map_lookup_elem(&event_data_map, &key);
 	if (!event)
-		return;
+		return 0;
 
 	event_init(event, HW_ERR_MCE);
+
 	bpf_probe_read(event->info, sizeof(struct trace_event_raw_mce_record),
 		       ctx);
 
-	// uncorrected error and deferred (AMD specific)
-	if ((ctx->cpuvendor == 2 && ctx->status & MCI_STATUS_DEFERRED) ||
-	    (ctx->status & MCI_STATUS_UC))
-		event->corrected = 0;
-	else
-		event->corrected = 1;
+	/*
+	 * Mark as uncorrected when the UC status bit is set, or for AMD when
+	 * the deferred-error bit is set (AMD-specific, vendor ID == 2).
+	 */
+	event->corrected =
+		((ctx->status & MCI_STATUS_UC) ||
+		 (ctx->cpuvendor == 2 && ctx->status & MCI_STATUS_DEFERRED))
+			? 0
+			: 1;
 
 	bpf_perf_event_output(ctx, &ras_event_map, COMPAT_BPF_F_CURRENT_CPU,
 			      event, sizeof(struct event));
+	return 0;
 }
 #endif
 
 SEC("tracepoint/ras/mc_event")
-void probe_ras_mc_event(struct trace_event_raw_mc_event *ctx)
+int probe_ras_mc_event(struct trace_event_raw_mc_event *ctx)
 {
 	struct event *event;
 	int key = 0;
 
 	event = bpf_map_lookup_elem(&event_data_map, &key);
 	if (!event)
-		return;
+		return 0;
 
 	event_init(event, HW_ERR_EDAC);
 
+	/* error_type != 0 means uncorrected in the EDAC tracepoint. */
 	event->corrected = ctx->error_type ? 0 : 1;
 
 	bpf_probe_read(event->info, event_size(ctx->__data_loc_driver_detail),
@@ -102,40 +117,51 @@ void probe_ras_mc_event(struct trace_event_raw_mc_event *ctx)
 
 	bpf_perf_event_output(ctx, &ras_event_map, COMPAT_BPF_F_CURRENT_CPU,
 			      event, sizeof(struct event));
+	return 0;
 }
 
 SEC("tracepoint/ras/non_standard_event")
-void probe_ras_non_standard(struct trace_event_raw_non_standard_event *ctx)
+int probe_ras_non_standard(struct trace_event_raw_non_standard_event *ctx)
 {
-	struct event *event;
 	int key = 0;
+	struct event *event;
 
 	event = bpf_map_lookup_elem(&event_data_map, &key);
 	if (!event)
-		return;
+		return 0;
 
 	event_init(event, HW_ERR_NON_STANDARD);
 
+	/*
+	 * Severity is embedded in the payload; correctedness is determined
+	 * from it in userspace, so corrected stays 0 (set by event_init).
+	 */
 	bpf_probe_read(event->info, event_size(ctx->__data_loc_buf), ctx);
 
 	bpf_perf_event_output(ctx, &ras_event_map, COMPAT_BPF_F_CURRENT_CPU,
 			      event, sizeof(struct event));
+	return 0;
 }
 
 SEC("tracepoint/ras/aer_event")
-void probe_ras_aer_event(struct trace_event_raw_aer_event *ctx)
+int probe_ras_aer_event(struct trace_event_raw_aer_event *ctx)
 {
-	struct event *event;
 	int key = 0;
+	struct event *event;
 
 	event = bpf_map_lookup_elem(&event_data_map, &key);
 	if (!event)
-		return;
+		return 0;
 
 	event_init(event, HW_ERR_AER_EVENT);
 
+	/*
+	 * AER severity is embedded in the payload; error type is resolved from
+	 * it in userspace, so corrected stays 0 (set by event_init).
+	 */
 	bpf_probe_read(event->info, event_size(ctx->__data_loc_dev_name), ctx);
 
 	bpf_perf_event_output(ctx, &ras_event_map, COMPAT_BPF_F_CURRENT_CPU,
 			      event, sizeof(struct event));
+	return 0;
 }
