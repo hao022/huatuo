@@ -53,10 +53,10 @@ const (
 
 // Error severity labels written into RasTracingData.ErrType.
 const (
-	ErrTypeCorrected   = "CORRECTED"
-	ErrTypeUncorrected = "UNCORRECTED"
-	ErrTypeRecovPanic  = "RECOVERABLE/PANIC"
-	ErrTypeFatal       = "FATAL"
+	ErrTypeCorrected   = "Corrected"
+	ErrTypeUncorrected = "Uncorrected"
+	ErrTypeRecovPanic  = "RecovPanic"
+	ErrTypeFatal       = "Fatal"
 )
 
 // The dynamic_array info always lives at the very end of each tracepoint
@@ -272,8 +272,8 @@ func buildRasEdacTracerData(data *rasEvent) (*RasTracingData, error) {
 	type tracepointEdacPayload struct {
 		Pad            uint64
 		ErrType        uint32
-		ErrorMsgOffset uint32 // __data_loc_msg
-		LabelOffset    uint32 // __data_loc_label
+		ErrorMsgOffset uint32
+		LabelOffset    uint32
 		ErrCount       uint16
 		McIndex        uint8
 		TopLayer       int8
@@ -284,7 +284,7 @@ func buildRasEdacTracerData(data *rasEvent) (*RasTracingData, error) {
 		GrainBits      uint8
 		ReserveB       [7]uint8
 		Syndrome       uint64
-		DriverDetail   uint32 // __data_loc_driver_detail
+		DriverDetail   uint32
 		MsgDetail      [DETAIL_INFO_SIZE_EDAC]byte
 	}
 
@@ -299,28 +299,45 @@ func buildRasEdacTracerData(data *rasEvent) (*RasTracingData, error) {
 	label := extractCString(dyn, payload.LabelOffset, edacBase)
 	driver := extractCString(dyn, payload.DriverDetail, edacBase)
 
+	info := struct {
+		ErrCount uint16 `json:"err_count"`
+		ErrType  string `json:"err_type"`
+		Msg      string `json:"err_msg"`
+		Label    string `json:"label"`
+		McIndex  uint8  `json:"mc_index"`
+		TopLayer int8   `json:"top_layer"`
+		MidLayer int8   `json:"mid_layer"`
+		LowLayer int8   `json:"low_layer"`
+		Addr     uint64 `json:"addr"`
+		Grain    uint64 `json:"grain"`
+		Syndrome uint64 `json:"syndrome"`
+		Driver   string `json:"driver"`
+	}{
+		ErrCount: payload.ErrCount,
+		ErrType:  ErrType(data.Corrected),
+		Msg:      msg,
+		Label:    label,
+		McIndex:  payload.McIndex,
+		TopLayer: payload.TopLayer,
+		MidLayer: payload.MidLayer,
+		LowLayer: payload.LowLayer,
+		Addr:     payload.Addr,
+		Grain:    uint64(1) << payload.GrainBits,
+		Syndrome: payload.Syndrome,
+		Driver:   driver,
+	}
+
+	infoBytes, err := json.Marshal(info)
+	if err != nil {
+		return nil, fmt.Errorf("marshal EDAC payload: %w", err)
+	}
+
 	return &RasTracingData{
 		Timestamp: data.Timestamp,
 		Device:    "MEM",
 		Event:     "EDAC",
 		ErrType:   ErrType(data.Corrected),
-		Info: fmt.Sprintf(
-			"%d %s err: %s on %s "+
-				"(mc: %d location:%d:%d:%d "+
-				"address: %#x grain:%d syndrome:%#x %s)",
-			payload.ErrCount,
-			ErrType(data.Corrected),
-			msg,
-			label,
-			payload.McIndex,
-			payload.TopLayer,
-			payload.MidLayer,
-			payload.LowLayer,
-			payload.Addr,
-			1<<payload.GrainBits,
-			payload.Syndrome,
-			driver,
-		),
+		Info:      string(infoBytes),
 	}, nil
 }
 
@@ -331,11 +348,11 @@ func buildRasAcpiTracerData(data *rasEvent) (*RasTracingData, error) {
 		Pad          uint64
 		SecType      [16]uint8
 		FruID        [16]uint8
-		FruTxtOffset uint32 // __data_loc_fru_text
+		FruTxtOffset uint32
 		Sev          uint8
 		Pattern      [3]uint8
 		Len          uint32
-		BufOffset    uint32 // __data_loc_buf
+		BufOffset    uint32
 		Msg          [DETAIL_INFO_SIZE_NON_STANDARD]byte
 	}
 
@@ -358,20 +375,33 @@ func buildRasAcpiTracerData(data *rasEvent) (*RasTracingData, error) {
 		errType = ErrTypeCorrected
 	}
 
+	info := struct {
+		Severity uint8  `json:"severity"`
+		SecType  string `json:"sec_type"`
+		FruID    string `json:"fru_id"`
+		FruText  string `json:"fru_text"`
+		DataLen  uint32 `json:"data_len"`
+		RawData  string `json:"raw_data"`
+	}{
+		Severity: payload.Sev,
+		SecType:  fmt.Sprintf("%x", payload.SecType),
+		FruID:    fmt.Sprintf("%x", payload.FruID),
+		FruText:  fru,
+		DataLen:  payload.Len,
+		RawData:  fmt.Sprintf("% x", rawData),
+	}
+
+	infoBytes, err := json.Marshal(info)
+	if err != nil {
+		return nil, fmt.Errorf("marshal ACPI non-standard payload: %w", err)
+	}
+
 	return &RasTracingData{
 		Timestamp: data.Timestamp,
 		Device:    "ACPI",
 		Event:     "NON_STANDARD",
 		ErrType:   errType,
-		Info: fmt.Sprintf(
-			"severity: %d; sec type:%x; FRU: %x%s; data len:%d; raw data:% x",
-			payload.Sev,
-			payload.SecType,
-			payload.FruID,
-			fru,
-			payload.Len,
-			rawData,
-		),
+		Info:      string(infoBytes),
 	}, nil
 }
 
@@ -417,13 +447,29 @@ func buildRasAerTracerData(data *rasEvent) (*RasTracingData, error) {
 			payload.TlpHeader[3])
 	}
 
+	info := struct {
+		DevName   string `json:"dev_name"`
+		ErrType   string `json:"err_type"`
+		ErrReason string `json:"err_reason"`
+		TlpHeader string `json:"tlp_header"`
+	}{
+		DevName:   dev,
+		ErrType:   errType,
+		ErrReason: errReason,
+		TlpHeader: tlpHeader,
+	}
+
+	infoBytes, err := json.Marshal(info)
+	if err != nil {
+		return nil, fmt.Errorf("marshal PCIe AER payload: %w", err)
+	}
+
 	return &RasTracingData{
 		Timestamp: data.Timestamp,
 		Device:    fmt.Sprintf("PCIe %s", dev),
 		Event:     "AER",
 		ErrType:   errType,
-		Info: fmt.Sprintf("PCIe Device: %s, Error: %s, Reason: %s, TLP Header: %s",
-			dev, errType, errReason, tlpHeader),
+		Info:      string(infoBytes),
 	}, nil
 }
 
