@@ -45,10 +45,10 @@ type rasTracing struct {
 
 // Hardware error type identifiers — must stay in sync with bpf/ras.c.
 const (
-	HW_ERR_MCE          = 0
-	HW_ERR_EDAC         = 1
-	HW_ERR_NON_STANDARD = 2
-	HW_ERR_AER_EVENT    = 3
+	HW_ERR_MCE       = 0
+	HW_ERR_EDAC      = 1
+	HW_ERR_ACPI_GHES = 2
+	HW_ERR_PCIE_AER  = 3
 )
 
 // Error severity labels written into RasTracingData.ErrType.
@@ -443,9 +443,9 @@ func dispatchRasTracerData(data *rasEvent) (*RasTracingData, error) {
 		return buildRasMceTracerData(data)
 	case HW_ERR_EDAC:
 		return buildRasEdacTracerData(data)
-	case HW_ERR_NON_STANDARD:
+	case HW_ERR_ACPI_GHES:
 		return buildRasAcpiTracerData(data)
-	case HW_ERR_AER_EVENT:
+	case HW_ERR_PCIE_AER:
 		return buildRasAerTracerData(data)
 	default:
 		return nil, fmt.Errorf("unsupported hardware error type %d", data.Type)
