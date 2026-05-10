@@ -17,7 +17,7 @@ char __license[] SEC("license") = "Dual MIT/GPL";
 
 struct event {
 	u32 type;
-	u32 corrected;
+	u32 pad0;
 	u64 timestamp;
 	u8 info[512];
 };
@@ -81,16 +81,6 @@ int probe_mce_record(struct trace_event_raw_mce_record *ctx)
 	bpf_probe_read(event->info, sizeof(struct trace_event_raw_mce_record),
 		       ctx);
 
-	/*
-	 * Mark as uncorrected when the UC status bit is set, or for AMD when
-	 * the deferred-error bit is set (AMD-specific, vendor ID == 2).
-	 */
-	event->corrected =
-		((ctx->status & MCI_STATUS_UC) ||
-		 (ctx->cpuvendor == 2 && ctx->status & MCI_STATUS_DEFERRED))
-			? 0
-			: 1;
-
 	bpf_perf_event_output(ctx, &ras_event_map, COMPAT_BPF_F_CURRENT_CPU,
 			      event, sizeof(struct event));
 	return 0;
@@ -108,9 +98,6 @@ int probe_ras_mc_event(struct trace_event_raw_mc_event *ctx)
 		return 0;
 
 	event_init(event, HW_ERR_EDAC);
-
-	/* error_type != 0 means uncorrected in the EDAC tracepoint. */
-	event->corrected = ctx->error_type ? 0 : 1;
 
 	bpf_probe_read(event->info, event_size(ctx->__data_loc_driver_detail),
 		       ctx);

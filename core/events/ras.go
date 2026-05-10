@@ -53,10 +53,12 @@ const (
 
 // Error severity labels written into RasTracingData.ErrType.
 const (
-	ErrTypeCorrected   = "Corrected"
-	ErrTypeUncorrected = "Uncorrected"
-	ErrTypeRecovPanic  = "RecovPanic"
-	ErrTypeFatal       = "Fatal"
+	ErrTypeCorrected              = "Corrected"
+	ErrTypeUncorrectedRecoverable = "UncorrectedRecoverable"
+	ErrTypeUncorrectedDeferred    = "UncorrectedDeferred"
+	ErrTypeUncorrectedFatal       = "UncorrectedFatal"
+	ErrTypeInfo                   = "Info"
+	ErrTypeUnknown                = "unknown"
 )
 
 // The dynamic_array info always lives at the very end of each tracepoint
@@ -70,16 +72,16 @@ const (
 //	trace_event_raw_non_standard_event: 60 − 4 = 56
 //	trace_event_raw_aer_event:          40 − 4 = 36
 const (
-	RAS_PERFEVENT_INFO_SIZE       = 512
-	DETAIL_INFO_SIZE_EDAC         = RAS_PERFEVENT_INFO_SIZE - 60
-	DETAIL_INFO_SIZE_NON_STANDARD = RAS_PERFEVENT_INFO_SIZE - 56
-	DETAIL_INFO_SIZE_AER          = RAS_PERFEVENT_INFO_SIZE - 36
+	RAS_PERFEVENT_INFO_SIZE = 512
+	DETAIL_INFO_SIZE_EDAC   = RAS_PERFEVENT_INFO_SIZE - 60
+	DETAIL_INFO_SIZE_ACPI   = RAS_PERFEVENT_INFO_SIZE - 56
+	DETAIL_INFO_SIZE_AER    = RAS_PERFEVENT_INFO_SIZE - 36
 )
 
 // rasEvent mirrors the BPF-side struct event layout.
 type rasEvent struct {
 	Type      uint32
-	Corrected uint32
+	Pad0      uint32
 	Timestamp uint64
 	Info      [RAS_PERFEVENT_INFO_SIZE]byte
 }
@@ -130,35 +132,127 @@ func cstring(buf []byte, rawOffset, base uint32) string {
 	return string(buf[off:])
 }
 
-func ErrType(corrected uint32) string {
-	if corrected != 0 {
-		return ErrTypeCorrected
+// Bank's MCi_STATUS MSR
+//
+// #define MCI_STATUS_DEFERRED     BIT_ULL(44)  /* uncorrected error, deferred exception */
+// #define MCI_STATUS_UC           BIT_ULL(61)  /* uncorrected error */
+
+const (
+	MCI_STATUS_DEFERRED = 1 << 44
+	MCI_STATUS_UC       = 1 << 61
+)
+
+func mceErrType(status uint64) string {
+	if status&MCI_STATUS_DEFERRED != 0 {
+		return ErrTypeUncorrectedDeferred
 	}
-	return ErrTypeUncorrected
+
+	if status&MCI_STATUS_UC != 0 {
+		return ErrTypeUncorrectedRecoverable
+	}
+
+	return ErrTypeCorrected
+}
+
+// copy from linux kernel include/linux/edac.h
+//
+/**
+ * enum hw_event_mc_err_type - type of the detected error
+ *
+ * @HW_EVENT_ERR_CORRECTED:     Corrected Error - Indicates that an ECC
+ *                              corrected error was detected
+ * @HW_EVENT_ERR_UNCORRECTED:   Uncorrected Error - Indicates an error that
+ *                              can't be corrected by ECC, but it is not
+ *                              fatal (maybe it is on an unused memory area,
+ *                              or the memory controller could recover from
+ *                              it for example, by re-trying the operation).
+ * @HW_EVENT_ERR_DEFERRED:      Deferred Error - Indicates an uncorrectable
+ *                              error whose handling is not urgent. This could
+ *                              be due to hardware data poisoning where the
+ *                              system can continue operation until the poisoned
+ *                              data is consumed. Preemptive measures may also
+ *                              be taken, e.g. offlining pages, etc.
+ * @HW_EVENT_ERR_FATAL:         Fatal Error - Uncorrected error that could not
+ *                              be recovered.
+ * @HW_EVENT_ERR_INFO:          Informational - The CPER spec defines a forth
+ *                              type of error: informational logs.
+ */
+
+/**
+ * enum hw_event_mc_err_type {
+ *        HW_EVENT_ERR_CORRECTED,
+ *        HW_EVENT_ERR_UNCORRECTED,
+ *        HW_EVENT_ERR_DEFERRED,
+ *        HW_EVENT_ERR_FATAL,
+ *        HW_EVENT_ERR_INFO,
+ * };
+ */
+func edacErrType(errType uint32) string {
+	switch errType {
+	case 0x0:
+		return ErrTypeCorrected
+	case 0x01:
+		return ErrTypeUncorrectedRecoverable
+	case 0x02:
+		return ErrTypeUncorrectedDeferred
+	case 0x03:
+		return ErrTypeUncorrectedFatal
+	case 0x04:
+		return ErrTypeInfo
+	default:
+		return ErrTypeUnknown
+	}
 }
 
 // acpiErrType maps an ACPI non-standard event severity to an error type.
-// 1. < 2 is corrected
-// 2. anything else is recoverable/panic.
+//
+// linux kernel include/acpi/ghes.h
+//
+//	enum {
+//	        GHES_SEV_NO = 0x0,
+//	        GHES_SEV_CORRECTED = 0x1,
+//	        GHES_SEV_RECOVERABLE = 0x2,
+//	        GHES_SEV_PANIC = 0x3,
+//	};
+//
+// ghes_edac_report_mem_error()
+//
+// GHES_SEV_CORRECTED - HW_EVENT_ERR_CORRECTED
+// GHES_SEV_RECOVERABLE - HW_EVENT_ERR_UNCORRECTED
+// GHES_SEV_PANIC - HW_EVENT_ERR_FATAL
+// GHES_SEV_NO - HW_EVENT_ERR_INFO
 func acpiErrType(sev uint8) string {
-	if sev < 2 {
+	switch sev {
+	case 0x0:
+		return ErrTypeInfo
+	case 0x1:
 		return ErrTypeCorrected
+	case 0x2:
+		return ErrTypeUncorrectedRecoverable
+	case 0x3:
+		return ErrTypeUncorrectedFatal
+	default:
+		return ErrTypeUnknown
 	}
-	return ErrTypeRecovPanic
 }
 
 // aerErrType maps a PCIe AER severity value to an error type.
-// 2 = correctable
-// 1 = fatal
-// 0 = uncorrectable
+//
+// linux kernel include/linux/aer.h
+//
+// AER_CORRECTABLE 2
+// AER_FATAL 1
+// AER_NONFATAL 0
 func aerErrType(severity uint8) string {
 	switch severity {
 	case 2:
 		return ErrTypeCorrected
 	case 1:
-		return ErrTypeFatal
+		return ErrTypeUncorrectedFatal
+	case 0:
+		return ErrTypeUncorrectedRecoverable
 	default:
-		return ErrTypeUncorrected
+		return ErrTypeUnknown
 	}
 }
 
@@ -287,7 +381,7 @@ func buildRasMceTracerData(data *rasEvent) (*RasTracingData, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parse MCE payload: %w", err)
 	}
-	return newRasTracingData(data, "CPU/MEM", "MCE", ErrType(data.Corrected), payload)
+	return newRasTracingData(data, "CPU/MEM", "MCE", mceErrType(payload.Status), payload)
 }
 
 func buildRasEdacTracerData(data *rasEvent) (*RasTracingData, error) {
@@ -318,7 +412,7 @@ func buildRasEdacTracerData(data *rasEvent) (*RasTracingData, error) {
 
 	const edacBase uint32 = 60
 	dyn := payload.MsgDetail[:]
-	return newRasTracingData(data, "MEM", "EDAC", ErrType(data.Corrected), struct {
+	return newRasTracingData(data, "MEM", "EDAC", edacErrType(payload.ErrType), struct {
 		ErrCount uint16 `json:"err_count"`
 		ErrType  string `json:"err_type"`
 		Msg      string `json:"err_msg"`
@@ -333,7 +427,7 @@ func buildRasEdacTracerData(data *rasEvent) (*RasTracingData, error) {
 		Driver   string `json:"driver"`
 	}{
 		ErrCount: payload.ErrCount,
-		ErrType:  ErrType(data.Corrected),
+		ErrType:  edacErrType(payload.ErrType),
 		Msg:      cstring(dyn, payload.ErrorMsgOffset, edacBase),
 		Label:    cstring(dyn, payload.LabelOffset, edacBase),
 		McIndex:  payload.McIndex,
@@ -359,7 +453,7 @@ func buildRasAcpiTracerData(data *rasEvent) (*RasTracingData, error) {
 		Pattern      [3]uint8
 		Len          uint32
 		BufOffset    uint32
-		Msg          [DETAIL_INFO_SIZE_NON_STANDARD]byte
+		Msg          [DETAIL_INFO_SIZE_ACPI]byte
 	}
 
 	payload, err := decodePayload[tracepointAcpiNonStandardPayload](data.Info[:])
