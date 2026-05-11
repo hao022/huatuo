@@ -1,5 +1,5 @@
 ---
-title: Events
+title: Instant Observability
 type: docs
 description:
 author: HUATUO Team

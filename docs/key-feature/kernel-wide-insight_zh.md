@@ -1,5 +1,5 @@
 ---
-title: 指标说明
+title: 内核全景观测
 type: docs
 description:
 author: HUATUO Team

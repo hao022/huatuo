@@ -1,5 +1,5 @@
 ---
-title: Metrics
+title: Kernel-Wide Insight
 type: docs
 description:
 author: HUATUO Team

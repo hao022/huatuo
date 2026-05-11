@@ -1,5 +1,5 @@
 ---
-title: 异常事件
+title: 异常事件诊断
 type: docs
 description:
 author: HUATUO Team

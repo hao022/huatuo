@@ -1,5 +1,5 @@
 ---
-title: 自动追踪
+title: 全自动化追踪
 type: docs
 description:
 author: HUATUO Team
