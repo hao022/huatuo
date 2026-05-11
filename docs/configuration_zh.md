@@ -742,7 +742,31 @@ IssuesList = []
 
   **说明**：邻居表相关丢包通常为正常行为，排除可减少误报。
 
-#### 7.6 已知问题过滤（IssuesList）
+#### 7.6 硬件错误事件追踪（EventTracing.Ras）
+
+```bash
+# ras
+#
+# Hardware error event tracing (RAS: Reliability, Availability, Serviceability).
+# Captures MCE, EDAC, ACPI/GHES, PCIe AER, and MCE threshold (THR) events via eBPF.
+#
+# - MceThrBackoff
+# Minimum interval in seconds between consecutive MCE threshold (THR) event saves.
+# THR events are fired by the local-APIC threshold interrupt and can storm at high
+# frequency; this cooldown prevents flooding storage with redundant records.
+# Default: 1800s (30 minutes)
+#
+[EventTracing.Ras]
+    # MceThrBackoff = 1800
+```
+
+- **MceThrBackoff**：MCE 阈值中断（THR）事件存储的最小间隔时间（秒）。
+
+  默认 1800s（30 分钟）。
+
+  **说明**：THR 事件由 CPU 本地 APIC 阈值中断触发，在硬件出现纠正性错误时可能以极高频率产生。该冷却时间用于防止存储系统被大量重复记录淹没，同时保证关键事件仍能被捕获。调低该值可获得更实时的事件记录，但需注意存储压力；在错误频发的环境中建议适当调高。
+
+#### 7.8 已知问题过滤（IssuesList）
 
 ```bash
 # IssuesList for known issue filtering in event tracing

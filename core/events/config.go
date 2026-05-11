@@ -40,6 +40,10 @@ type Config struct {
 		DeviceList []string
 	}
 
+	Ras struct {
+		MceThrBackoff int64 `default:"1800"`
+	}
+
 	IssuesList [][]string
 }
 

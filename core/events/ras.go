@@ -102,9 +102,11 @@ type RasTracingData struct {
 	Info      string `json:"info"`
 }
 
+const defaultThrEventBackoff = 30 * time.Minute
+
 type rasTracing struct {
 	counts     [maxNumHWErrTypes]atomic.Uint64
-	thrBackoff *backoff.Backoff // 30-minute cooldown between THR event saves
+	thrBackoff *backoff.Backoff // THR event save cooldown
 }
 
 func init() {
@@ -112,9 +114,14 @@ func init() {
 }
 
 func newRasTracing() (*tracing.EventTracingAttr, error) {
-	// max == interval so Duration() always returns 30 m (flat, non-exponential).
-	thrBO := backoff.NewWithoutJitter(30*time.Minute, 30*time.Minute)
-	thrBO.SetDecay(30 * time.Minute)
+	backoffDur := defaultThrEventBackoff
+	if cfg.Ras.MceThrBackoff > 0 {
+		backoffDur = time.Duration(cfg.Ras.MceThrBackoff) * time.Second
+	}
+
+	// max == interval so Duration() always returns a flat, non-exponential value.
+	thrBO := backoff.NewWithoutJitter(backoffDur, backoffDur)
+	thrBO.SetDecay(backoffDur)
 
 	return &tracing.EventTracingAttr{
 		TracingData: &rasTracing{thrBackoff: thrBO},
