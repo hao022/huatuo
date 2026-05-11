@@ -11,6 +11,7 @@ char __license[] SEC("license") = "Dual MIT/GPL";
 #define HW_ERR_EDAC	    1
 #define HW_ERR_NON_STANDARD 2
 #define HW_ERR_AER_EVENT    3
+#define HW_ERR_THR	    4
 
 #define MCI_STATUS_DEFERRED (1ULL << 44)
 #define MCI_STATUS_UC	    (1ULL << 61)
@@ -30,7 +31,7 @@ struct {
 	__uint(max_entries, 1);
 } event_data_map SEC(".maps");
 
-/* Perf-event array for delivering events to userspace. */
+/* Perf-event array for delivering RAS hardware error events to userspace. */
 struct {
 	__uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
 	__uint(key_size, sizeof(int));
@@ -66,6 +67,7 @@ static __always_inline u32 event_size(u32 data_loc)
 }
 
 #ifdef __TARGET_ARCH_x86
+
 SEC("tracepoint/mce/mce_record")
 int probe_mce_record(struct trace_event_raw_mce_record *ctx)
 {
@@ -85,7 +87,47 @@ int probe_mce_record(struct trace_event_raw_mce_record *ctx)
 			      event, sizeof(struct event));
 	return 0;
 }
-#endif
+
+/* thr_info is stored in event->info for HW_ERR_THR events. */
+struct thr_info {
+	u32 vector;
+	u32 cpu;
+};
+
+/*
+ * thr_apic_ctx mirrors DECLARE_EVENT_CLASS(vector_apic): struct trace_entry
+ * (8 bytes) + int vector.  Defined locally because vmlinux.h does not include
+ * the shared trace_event_raw_vector_apic class struct.
+ */
+struct thr_apic_ctx {
+	struct trace_entry ent;
+	int vector;
+};
+
+SEC("tracepoint/irq_vectors/threshold_apic_entry")
+int probe_thr_apic(struct thr_apic_ctx *ctx)
+{
+	struct event *event;
+	int key = 0;
+
+	event = bpf_map_lookup_elem(&event_data_map, &key);
+	if (!event)
+		return 0;
+
+	event_init(event, HW_ERR_THR);
+
+	struct thr_info thr = {
+		.vector = (u32)ctx->vector,
+		.cpu	= bpf_get_smp_processor_id(),
+	};
+	bpf_probe_read(event->info, sizeof(thr), &thr);
+
+	bpf_perf_event_output(ctx, &ras_event_map, COMPAT_BPF_F_CURRENT_CPU,
+			      event, sizeof(struct event));
+	return 0;
+}
+
+#endif /* __TARGET_ARCH_x86 */
 
 SEC("tracepoint/ras/mc_event")
 int probe_ras_mc_event(struct trace_event_raw_mc_event *ctx)

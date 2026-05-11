@@ -15,15 +15,11 @@
 package events
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"os"
-	"strconv"
-	"strings"
 	"sync/atomic"
 	"time"
 
@@ -31,6 +27,8 @@ import (
 	"huatuo-bamai/internal/storage"
 	"huatuo-bamai/pkg/metric"
 	"huatuo-bamai/pkg/tracing"
+
+	"github.com/cloudflare/backoff"
 )
 
 //go:generate $BPF_COMPILE $BPF_INCLUDE -s $BPF_DIR/ras.c -o $BPF_DIR/ras.o
@@ -41,11 +39,12 @@ const (
 	HW_ERR_EDAC      = 1
 	HW_ERR_ACPI_GHES = 2
 	HW_ERR_PCIE_AER  = 3
+	HW_ERR_THR       = 4 // MCE threshold (local-APIC) interrupt
 )
 
 // maxNumHWErrTypes is the total number of distinct hardware error source types.
 // Any new HW_ERR_* constant must increment this value and extend hwErrTypeLabels.
-const maxNumHWErrTypes = 4
+const maxNumHWErrTypes = 5
 
 // hwErrTypeLabels maps each HW_ERR_* index to its Prometheus "type" label value.
 // Index must align 1:1 with the HW_ERR_* constants above.
@@ -54,6 +53,7 @@ var hwErrTypeLabels = [maxNumHWErrTypes]string{
 	HW_ERR_EDAC:      "edac",
 	HW_ERR_ACPI_GHES: "acpi",
 	HW_ERR_PCIE_AER:  "aer",
+	HW_ERR_THR:       "thr",
 }
 
 const labelType = "type"
@@ -103,19 +103,21 @@ type RasTracingData struct {
 }
 
 type rasTracing struct {
-	counts         [maxNumHWErrTypes]atomic.Uint64 // per-type RAS event totals
-	thresholdCount atomic.Uint64                   // MCE threshold-interrupt baseline set in Start
+	counts     [maxNumHWErrTypes]atomic.Uint64
+	thrBackoff *backoff.Backoff // 30-minute cooldown between THR event saves
 }
-
-var interruptsPath = "/proc/interrupts"
 
 func init() {
 	tracing.RegisterEventTracing("ras", newRasTracing)
 }
 
 func newRasTracing() (*tracing.EventTracingAttr, error) {
+	// max == interval so Duration() always returns 30 m (flat, non-exponential).
+	thrBO := backoff.NewWithoutJitter(30*time.Minute, 30*time.Minute)
+	thrBO.SetDecay(30 * time.Minute)
+
 	return &tracing.EventTracingAttr{
-		TracingData: &rasTracing{},
+		TracingData: &rasTracing{thrBackoff: thrBO},
 		Interval:    60,
 		Flag:        tracing.FlagTracing | tracing.FlagMetric,
 	}, nil
@@ -518,6 +520,19 @@ func buildRasAerTracerData(data *rasEvent) (*RasTracingData, error) {
 	})
 }
 
+func buildRasThrTracerData(data *rasEvent) (*RasTracingData, error) {
+	// tracepointThrPayload mirrors BPF-side struct thr_info stored in event->info.
+	type tracepointThrPayload struct {
+		Vector uint32 `json:"vector"`
+		CPU    uint32 `json:"cpu"`
+	}
+	payload, err := decodePayload[tracepointThrPayload](data.Info[:])
+	if err != nil {
+		return nil, fmt.Errorf("parse THR payload: %w", err)
+	}
+	return newRasTracingData(data, "CPU", "MCE_THRESHOLD", ErrTypeCorrected, payload)
+}
+
 func dispatchRasTracerData(data *rasEvent) (*RasTracingData, error) {
 	switch data.Type {
 	case HW_ERR_MCE:
@@ -528,14 +543,12 @@ func dispatchRasTracerData(data *rasEvent) (*RasTracingData, error) {
 		return buildRasAcpiTracerData(data)
 	case HW_ERR_PCIE_AER:
 		return buildRasAerTracerData(data)
+	case HW_ERR_THR:
+		return buildRasThrTracerData(data)
 	default:
 		return nil, fmt.Errorf("unsupported hardware error type %d", data.Type)
 	}
 }
-
-// ---------------------------------------------------------------------------
-// ITracingEvent implementation
-// ---------------------------------------------------------------------------
 
 func (ras *rasTracing) Start(ctx context.Context) error {
 	b, err := bpf.LoadBpf(bpf.ThisBpfOBJ(), nil)
@@ -549,39 +562,43 @@ func (ras *rasTracing) Start(ctx context.Context) error {
 
 	reader, err := b.AttachAndEventPipe(childCtx, "ras_event_map", 8192)
 	if err != nil {
-		return fmt.Errorf("attach and event pipe: %w", err)
+		return fmt.Errorf("attach ras event pipe: %w", err)
 	}
 	defer reader.Close()
 
-	// Establish the MCE-threshold interrupt baseline so Update only counts deltas.
-	// getThrInfo may legitimately fail on systems without MCE threshold interrupts
-	// (VMs, ARM); treat 0 as the baseline in that case.
-	initial, err := getThrInfo()
-	if err != nil {
-		initial = 0
-	}
-	ras.thresholdCount.Store(initial)
+	b.WaitDetachByBreaker(childCtx, cancel)
+
+	return ras.rasEventLoop(childCtx, reader)
+}
+
+func (ras *rasTracing) rasEventLoop(ctx context.Context, reader bpf.PerfEventReader) error {
+	var nextThrAllowed time.Time
 
 	for {
 		select {
-		case <-childCtx.Done():
+		case <-ctx.Done():
 			return nil
 		default:
-			var eventData rasEvent
-			if err := reader.ReadInto(&eventData); err != nil {
+			var ev rasEvent
+			if err := reader.ReadInto(&ev); err != nil {
 				return fmt.Errorf("read ras event: %w", err)
 			}
 
-			// Guard against unknown future event types from the BPF side.
-			if int(eventData.Type) < maxNumHWErrTypes {
-				ras.counts[eventData.Type].Add(1)
+			if int(ev.Type) < maxNumHWErrTypes {
+				ras.counts[ev.Type].Add(1)
 			}
 
-			tracerData, err := dispatchRasTracerData(&eventData)
+			// THR: backoff to suppress interrupt storms.
+			if ev.Type == HW_ERR_THR {
+				now := time.Now()
+				if now.Before(nextThrAllowed) {
+					continue
+				}
+				nextThrAllowed = now.Add(ras.thrBackoff.Duration())
+			}
+
+			tracerData, err := dispatchRasTracerData(&ev)
 			if err != nil {
-				// Unknown or malformed event — skip rather than aborting
-				// the entire tracer.  Callers can observe the per-type count
-				// metrics to detect repeated parse failures.
 				continue
 			}
 
@@ -590,33 +607,7 @@ func (ras *rasTracing) Start(ctx context.Context) error {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Collector implementation
-// ---------------------------------------------------------------------------
-
 func (ras *rasTracing) Update() ([]*metric.Data, error) {
-	current, err := getThrInfo()
-	if err != nil {
-		return nil, err
-	}
-
-	prev := ras.thresholdCount.Load()
-	if prev < current {
-		delta := current - prev
-		ras.thresholdCount.Store(current)
-		// THR is the MCE threshold-interrupt line; count it under the mce bucket.
-		ras.counts[HW_ERR_MCE].Add(1)
-
-		storage.Save("ras", "", time.Now(), &RasTracingData{
-			Device:  "MCE",
-			Event:   "Threshold APIC interrupts",
-			ErrType: ErrTypeCorrected,
-			Info:    fmt.Sprintf("%d threshold interrupts occurred, totaling %d", delta, current),
-		})
-	}
-
-	// Emit one hw_total time-series per hardware error source type so that
-	// operators can alert on individual subsystems without aggregation.
 	metrics := make([]*metric.Data, maxNumHWErrTypes)
 	for i, typeLabel := range hwErrTypeLabels {
 		metrics[i] = metric.NewCounterData(
@@ -627,44 +618,4 @@ func (ras *rasTracing) Update() ([]*metric.Data, error) {
 		)
 	}
 	return metrics, nil
-}
-
-// ---------------------------------------------------------------------------
-// /proc/interrupts helper
-// ---------------------------------------------------------------------------
-
-// getThrInfo reads /proc/interrupts and returns the sum of per-CPU counts for
-// the THR (MCE threshold) interrupt line.
-func getThrInfo() (uint64, error) {
-	file, err := os.Open(interruptsPath)
-	if err != nil {
-		return 0, fmt.Errorf("open %s: %w", interruptsPath, err)
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if !strings.Contains(line, "THR") {
-			continue
-		}
-
-		var sum uint64
-		var count int
-		for _, field := range strings.Fields(line) {
-			if n, err := strconv.ParseUint(field, 10, 64); err == nil {
-				sum += n
-				count++
-			}
-		}
-		if count == 0 {
-			return 0, fmt.Errorf("no numeric counts in THR interrupt line")
-		}
-		return sum, nil
-	}
-
-	if err := scanner.Err(); err != nil {
-		return 0, fmt.Errorf("scan %s: %w", interruptsPath, err)
-	}
-	return 0, fmt.Errorf("THR line not found in %s", interruptsPath)
 }
