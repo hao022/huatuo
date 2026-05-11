@@ -35,14 +35,6 @@ import (
 
 //go:generate $BPF_COMPILE $BPF_INCLUDE -s $BPF_DIR/ras.c -o $BPF_DIR/ras.o
 
-// rasTracing holds per-instance state; all fields are accessed via atomic ops
-// so that Start (goroutine A) and Update (goroutine B, Prometheus scrape) do
-// not race.
-type rasTracing struct {
-	count          uint64 // total RAS events observed
-	thresholdCount uint64 // MCE threshold-interrupt baseline set in Start
-}
-
 // Hardware error type identifiers — must stay in sync with bpf/ras.c.
 const (
 	HW_ERR_MCE       = 0
@@ -50,6 +42,21 @@ const (
 	HW_ERR_ACPI_GHES = 2
 	HW_ERR_PCIE_AER  = 3
 )
+
+// maxNumHWErrTypes is the total number of distinct hardware error source types.
+// Any new HW_ERR_* constant must increment this value and extend hwErrTypeLabels.
+const maxNumHWErrTypes = 4
+
+// hwErrTypeLabels maps each HW_ERR_* index to its Prometheus "type" label value.
+// Index must align 1:1 with the HW_ERR_* constants above.
+var hwErrTypeLabels = [maxNumHWErrTypes]string{
+	HW_ERR_MCE:       "mce",
+	HW_ERR_EDAC:      "edac",
+	HW_ERR_ACPI_GHES: "acpi",
+	HW_ERR_PCIE_AER:  "aer",
+}
+
+const labelType = "type"
 
 // Error severity labels written into RasTracingData.ErrType.
 const (
@@ -93,6 +100,11 @@ type RasTracingData struct {
 	ErrType   string `json:"type"`
 	Timestamp uint64 `json:"timestamp"`
 	Info      string `json:"info"`
+}
+
+type rasTracing struct {
+	counts         [maxNumHWErrTypes]atomic.Uint64 // per-type RAS event totals
+	thresholdCount atomic.Uint64                   // MCE threshold-interrupt baseline set in Start
 }
 
 var interruptsPath = "/proc/interrupts"
@@ -146,47 +158,20 @@ func mceErrType(status uint64) string {
 	if status&MCI_STATUS_DEFERRED != 0 {
 		return ErrTypeUncorrectedDeferred
 	}
-
 	if status&MCI_STATUS_UC != 0 {
 		return ErrTypeUncorrectedRecoverable
 	}
-
 	return ErrTypeCorrected
 }
 
 // copy from linux kernel include/linux/edac.h
 //
-/**
- * enum hw_event_mc_err_type - type of the detected error
- *
- * @HW_EVENT_ERR_CORRECTED:     Corrected Error - Indicates that an ECC
- *                              corrected error was detected
- * @HW_EVENT_ERR_UNCORRECTED:   Uncorrected Error - Indicates an error that
- *                              can't be corrected by ECC, but it is not
- *                              fatal (maybe it is on an unused memory area,
- *                              or the memory controller could recover from
- *                              it for example, by re-trying the operation).
- * @HW_EVENT_ERR_DEFERRED:      Deferred Error - Indicates an uncorrectable
- *                              error whose handling is not urgent. This could
- *                              be due to hardware data poisoning where the
- *                              system can continue operation until the poisoned
- *                              data is consumed. Preemptive measures may also
- *                              be taken, e.g. offlining pages, etc.
- * @HW_EVENT_ERR_FATAL:         Fatal Error - Uncorrected error that could not
- *                              be recovered.
- * @HW_EVENT_ERR_INFO:          Informational - The CPER spec defines a forth
- *                              type of error: informational logs.
- */
-
-/**
- * enum hw_event_mc_err_type {
- *        HW_EVENT_ERR_CORRECTED,
- *        HW_EVENT_ERR_UNCORRECTED,
- *        HW_EVENT_ERR_DEFERRED,
- *        HW_EVENT_ERR_FATAL,
- *        HW_EVENT_ERR_INFO,
- * };
- */
+//   - enum hw_event_mc_err_type - type of the detected error
+//   - @HW_EVENT_ERR_CORRECTED:     Corrected Error
+//   - @HW_EVENT_ERR_UNCORRECTED:   Uncorrected Error (non-fatal)
+//   - @HW_EVENT_ERR_DEFERRED:      Deferred Error (uncorrectable but not urgent)
+//   - @HW_EVENT_ERR_FATAL:         Fatal Error (uncorrectable, unrecoverable)
+//   - @HW_EVENT_ERR_INFO:          Informational (CPER informational logs)
 func edacErrType(errType uint32) string {
 	switch errType {
 	case 0x0:
@@ -217,10 +202,10 @@ func edacErrType(errType uint32) string {
 //
 // ghes_edac_report_mem_error()
 //
-// GHES_SEV_CORRECTED - HW_EVENT_ERR_CORRECTED
-// GHES_SEV_RECOVERABLE - HW_EVENT_ERR_UNCORRECTED
-// GHES_SEV_PANIC - HW_EVENT_ERR_FATAL
-// GHES_SEV_NO - HW_EVENT_ERR_INFO
+// GHES_SEV_CORRECTED  → HW_EVENT_ERR_CORRECTED
+// GHES_SEV_RECOVERABLE → HW_EVENT_ERR_UNCORRECTED
+// GHES_SEV_PANIC      → HW_EVENT_ERR_FATAL
+// GHES_SEV_NO         → HW_EVENT_ERR_INFO
 func acpiErrType(sev uint8) string {
 	switch sev {
 	case 0x0:
@@ -335,7 +320,7 @@ func pciErrReason(status uint32, correctable bool) string {
 	return "unknown"
 }
 
-func newRasTracingData(ev *rasEvent, device, event, errType string, info any) (*RasTracingData, error) {
+func newRasTracingData[T any](ev *rasEvent, device, event, errType string, info T) (*RasTracingData, error) {
 	b, err := json.Marshal(info)
 	if err != nil {
 		return nil, fmt.Errorf("marshal %s info: %w", event, err)
@@ -412,7 +397,9 @@ func buildRasEdacTracerData(data *rasEvent) (*RasTracingData, error) {
 
 	const edacBase uint32 = 60
 	dyn := payload.MsgDetail[:]
-	return newRasTracingData(data, "MEM", "EDAC", edacErrType(payload.ErrType), struct {
+	errType := edacErrType(payload.ErrType)
+
+	return newRasTracingData(data, "MEM", "EDAC", errType, struct {
 		ErrCount uint16 `json:"err_count"`
 		ErrType  string `json:"err_type"`
 		Msg      string `json:"err_msg"`
@@ -427,7 +414,7 @@ func buildRasEdacTracerData(data *rasEvent) (*RasTracingData, error) {
 		Driver   string `json:"driver"`
 	}{
 		ErrCount: payload.ErrCount,
-		ErrType:  edacErrType(payload.ErrType),
+		ErrType:  errType,
 		Msg:      cstring(dyn, payload.ErrorMsgOffset, edacBase),
 		Label:    cstring(dyn, payload.LabelOffset, edacBase),
 		McIndex:  payload.McIndex,
@@ -566,14 +553,14 @@ func (ras *rasTracing) Start(ctx context.Context) error {
 	}
 	defer reader.Close()
 
-	// Establish the THR-interrupt baseline so Update only reports deltas.
-	// getThrInfo may legitimately fail on systems without MCE threshold
-	// interrupts (VMs, ARM); treat 0 as the baseline in that case.
+	// Establish the MCE-threshold interrupt baseline so Update only counts deltas.
+	// getThrInfo may legitimately fail on systems without MCE threshold interrupts
+	// (VMs, ARM); treat 0 as the baseline in that case.
 	initial, err := getThrInfo()
 	if err != nil {
 		initial = 0
 	}
-	atomic.StoreUint64(&ras.thresholdCount, initial)
+	ras.thresholdCount.Store(initial)
 
 	for {
 		select {
@@ -585,13 +572,16 @@ func (ras *rasTracing) Start(ctx context.Context) error {
 				return fmt.Errorf("read ras event: %w", err)
 			}
 
-			atomic.AddUint64(&ras.count, 1)
+			// Guard against unknown future event types from the BPF side.
+			if int(eventData.Type) < maxNumHWErrTypes {
+				ras.counts[eventData.Type].Add(1)
+			}
 
 			tracerData, err := dispatchRasTracerData(&eventData)
 			if err != nil {
 				// Unknown or malformed event — skip rather than aborting
-				// the entire tracer.  Callers can observe the raw count
-				// metric to detect repeated parse failures.
+				// the entire tracer.  Callers can observe the per-type count
+				// metrics to detect repeated parse failures.
 				continue
 			}
 
@@ -610,24 +600,33 @@ func (ras *rasTracing) Update() ([]*metric.Data, error) {
 		return nil, err
 	}
 
-	prev := atomic.LoadUint64(&ras.thresholdCount)
+	prev := ras.thresholdCount.Load()
 	if prev < current {
 		delta := current - prev
-		atomic.StoreUint64(&ras.thresholdCount, current)
-		atomic.AddUint64(&ras.count, 1)
+		ras.thresholdCount.Store(current)
+		// THR is the MCE threshold-interrupt line; count it under the mce bucket.
+		ras.counts[HW_ERR_MCE].Add(1)
 
 		storage.Save("ras", "", time.Now(), &RasTracingData{
-			Device:  "ACPI",
+			Device:  "MCE",
 			Event:   "Threshold APIC interrupts",
 			ErrType: ErrTypeCorrected,
 			Info:    fmt.Sprintf("%d threshold interrupts occurred, totaling %d", delta, current),
 		})
 	}
 
-	return []*metric.Data{
-		metric.NewCounterData("hw_total", float64(atomic.LoadUint64(&ras.count)),
-			"ras counter", nil),
-	}, nil
+	// Emit one hw_total time-series per hardware error source type so that
+	// operators can alert on individual subsystems without aggregation.
+	metrics := make([]*metric.Data, maxNumHWErrTypes)
+	for i, typeLabel := range hwErrTypeLabels {
+		metrics[i] = metric.NewCounterData(
+			"hw_err_total",
+			float64(ras.counts[i].Load()),
+			"total RAS hardware error events by source type",
+			map[string]string{labelType: typeLabel},
+		)
+	}
+	return metrics, nil
 }
 
 // ---------------------------------------------------------------------------
