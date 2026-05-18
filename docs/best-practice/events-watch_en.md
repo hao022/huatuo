@@ -194,13 +194,13 @@ Content-Type: application/json
 
 Once the connection is established the server pushes events continuously in SSE format:
 
-```
+```json
 data: {"specversion":"1.0","id":"...","source":"/huatuo/node-1/oom",...}\n\n
 ```
 
 The server also sends periodic keepalive comment lines to maintain the connection:
 
-```
+```json
 : ping\n
 ```
 

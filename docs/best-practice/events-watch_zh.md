@@ -194,13 +194,13 @@ Content-Type: application/json
 
 连接建立后，服务端以 SSE 格式持续推送事件：
 
-```
+```json
 data: {"specversion":"1.0","id":"...","source":"/huatuo/node-1/oom",...}\n\n
 ```
 
 服务端还会定期发送心跳注释行以保持连接：
 
-```
+```json
 : ping\n
 ```
 
