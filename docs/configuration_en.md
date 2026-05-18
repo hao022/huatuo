@@ -968,7 +968,48 @@ This section configures how to fetch Pod information from kubelet to enable cont
 
   **Description**: Used for mTLS authentication on the HTTPS port. In non-Kubernetes (bare-metal) environments, set both ports to 0 to disable Pod fetching.
 
-### 10. Best Practices and Important Notes
+### 10. Events Watch
+
+This section controls the runtime behavior of the `POST /v1/events/watch` SSE streaming API, through which external clients can subscribe to a real-time stream of kernel events.
+
+```bash
+# Events Watch Configuration
+#
+# Controls the behavior of the POST /v1/events/watch SSE streaming API,
+# which allows external clients to subscribe to kernel events in real-time.
+#
+# - MaxClients
+# Maximum number of concurrent clients allowed to hold an open /v1/events/watch
+# connection. Once the limit is reached, new requests are rejected with HTTP 429
+# (Too Many Requests) until an existing client disconnects.
+# Default: 100
+#
+# - KeepAliveInterval
+# Interval in seconds at which the server sends an SSE comment ping to each
+# connected client. The ping keeps the HTTP connection alive through load
+# balancers and proxies that would otherwise time out idle connections.
+# If writing the ping fails three consecutive times the server treats the
+# client as gone and closes the connection.
+# Default: 30s
+#
+[EventsWatch]
+    # MaxClients = 100
+    # KeepAliveInterval = 30
+```
+
+- **MaxClients**: Maximum number of concurrent `/v1/events/watch` connections.
+
+  Default: 100. When this limit is reached, new requests are rejected with HTTP 429 (Too Many Requests) until an existing client disconnects.
+
+  **Description**: Tune this value based on available node resources and the expected number of subscribers. Each open connection occupies a goroutine and a buffered subscription channel (256 events deep); keep memory pressure in mind when setting a high value.
+
+- **KeepAliveInterval**: Interval in seconds between SSE heartbeat pings sent to each connected client.
+
+  Default: 30s. The server sends an SSE comment line (`": ping"`) at this interval to keep the HTTP long-polling connection alive through load balancers and proxies that would otherwise close idle connections.
+
+  **Description**: If three consecutive write attempts (ping or event data) fail, the server considers the client gone and closes the connection, releasing all associated resources. Set this value below the idle-timeout of any upstream proxy. Common production values are 15–60s.
+
+### 11. Best Practices and Important Notes
 
 - **Resource Control**: In production, prioritize adjusting CPU and memory limits in [RuntimeCgroup] to avoid impacting business containers.
 - **Storage Choice**: For small-scale deployments, prefer [Storage.LocalFile] for local troubleshooting. For large clusters, configure Elasticsearch for centralized storage and querying.

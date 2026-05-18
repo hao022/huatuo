@@ -985,7 +985,48 @@ IssuesList = []
 
   **说明**：参考 Kubernetes 证书最佳实践，用于 HTTPS 端口的 mTLS 认证。在裸金属或非 Kubernetes 环境中可通过将两个端口设为 0 来禁用 Pod 获取功能。
 
-### 10. 配置最佳实践与注意事项
+### 10. 事件监听配置
+
+该 section 用于控制 `POST /v1/events/watch` SSE 流式接口的运行行为，外部客户端可通过该接口实时订阅内核事件数据流。
+
+```bash
+# Events Watch Configuration
+#
+# Controls the behavior of the POST /v1/events/watch SSE streaming API,
+# which allows external clients to subscribe to kernel events in real-time.
+#
+# - MaxClients
+# Maximum number of concurrent clients allowed to hold an open /v1/events/watch
+# connection. Once the limit is reached, new requests are rejected with HTTP 429
+# (Too Many Requests) until an existing client disconnects.
+# Default: 100
+#
+# - KeepAliveInterval
+# Interval in seconds at which the server sends an SSE comment ping to each
+# connected client. The ping keeps the HTTP connection alive through load
+# balancers and proxies that would otherwise time out idle connections.
+# If writing the ping fails three consecutive times the server treats the
+# client as gone and closes the connection.
+# Default: 30s
+#
+[EventsWatch]
+    # MaxClients = 100
+    # KeepAliveInterval = 30
+```
+
+- **MaxClients**：最大并发客户端连接数。
+
+  默认 100。允许同时持有 `/v1/events/watch` 长连接的客户端上限。当连接数达到该值时，新请求将以 HTTP 429（Too Many Requests）被拒绝，直到已有客户端断开连接后方可接入。
+
+  **说明**：根据节点资源和实际订阅方数量合理调整。每个长连接会占用一个 goroutine 和一个订阅通道（缓冲 256 条），连接数过多时注意内存压力。
+
+- **KeepAliveInterval**：探活心跳间隔（秒）。
+
+  默认 30s。服务端每隔该时间向已连接客户端发送一条 SSE 注释行（`": ping"`）以维持 HTTP 长连接，防止负载均衡器或代理因连接空闲而超时断开。
+
+  **说明**：若服务端连续 3 次写入探活消息（或事件数据）均失败，则视为客户端已断开并主动关闭连接，释放相关资源。建议该值不超过上游代理的 idle timeout，生产环境常见值为 15–60s。
+
+### 11. 配置最佳实践与注意事项
 
 - **资源控制**：生产环境优先调整 RuntimeCgroup 中的 CPU 和内存限制，避免影响业务容器。
 - **存储选择**：小规模部署可优先使用 LocalFile 进行本地排查；大规模集群推荐配置 Elasticsearch 实现集中存储与查询。
