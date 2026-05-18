@@ -1,5 +1,5 @@
 ---
-title: Events Watch
+title: 内核事件订阅
 type: docs
 description: 通过 CloudEvents SSE 流实时订阅华佗内核事件
 author: HUATUO Team
@@ -152,13 +152,13 @@ weight: 3
 
 ### 3.1 接口地址
 
-```
+```json
 POST /v1/events/watch
 ```
 
 ### 3.2 请求头
 
-```
+```json
 Content-Type: application/json
 ```
 

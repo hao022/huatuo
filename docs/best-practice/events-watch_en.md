@@ -152,13 +152,13 @@ The `data` field contains HUATUO's standard event record:
 
 ### 3.1 Endpoint
 
-```
+```json
 POST /v1/events/watch
 ```
 
 ### 3.2 Request Headers
 
-```
+```json
 Content-Type: application/json
 ```
 
