@@ -58,6 +58,11 @@ type BamaiConfig struct {
 		MaxRunningTask int `default:"10"`
 	}
 
+	EventsWatch struct {
+		MaxClients        int `default:"100"`
+		KeepAliveInterval int `default:"30"`
+	}
+
 	Pod struct {
 		KubeletReadOnlyPort   uint32 `default:"10255"`
 		KubeletAuthorizedPort uint32 `default:"10250"`

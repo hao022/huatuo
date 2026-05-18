@@ -17,6 +17,7 @@ package handlers
 import (
 	"time"
 
+	"huatuo-bamai/cmd/huatuo-bamai/config"
 	"huatuo-bamai/internal/server"
 	"huatuo-bamai/pkg/tracing"
 
@@ -40,6 +41,8 @@ func Start(addr string, mgrTracing *tracing.TracingManager, promReg *prometheus.
 	s.MustRegisterRoutes("/tracers", NewTracerHandler(mgrTracing).Handlers)
 	s.MustRegisterRoutes("", NewContainerHandler().Handlers)
 	s.MustRegisterRoutes("", NewConfigHandler().Handlers)
+	evtCfg := config.Get().EventsWatch
+	s.MustRegisterRoutes("/v1/events", NewEventsHandler(evtCfg.MaxClients, evtCfg.KeepAliveInterval).Handlers)
 
 	_ = s.Run(&server.Option{
 		Addr:          addr,

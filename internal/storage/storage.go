@@ -248,6 +248,8 @@ func Save(tracerName, containerID string, tracerTime time.Time, tracerData any) 
 	if err := localFileExporter.Write(document); err != nil {
 		log.Infof("failed to save %#v into local-file: %v", document, err)
 	}
+
+	notifySubscribers(document)
 }
 
 type TracerBasicData struct {
