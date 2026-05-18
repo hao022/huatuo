@@ -20,6 +20,7 @@ import (
 	"time"
 
 	storagetypes "huatuo-bamai/internal/storage/types"
+	pkgtypes "huatuo-bamai/pkg/types"
 
 	"github.com/stretchr/testify/require"
 )
@@ -55,5 +56,12 @@ func TestDocumentToWatchEvent_Data(t *testing.T) {
 	doc := newTestDocument()
 	ev := DocumentToWatchEvent(doc)
 
-	require.Equal(t, doc, ev.Data)
+	want := pkgtypes.WatchEventData{
+		Hostname:          doc.Hostname,
+		Region:            doc.Region,
+		ObservedTimestamp: doc.TracerTime,
+		TracerName:        doc.TracerName,
+		TracerRunType:     doc.TracerRunType,
+	}
+	require.Equal(t, want, ev.Data)
 }
