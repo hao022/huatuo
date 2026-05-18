@@ -86,15 +86,21 @@ func TestSubscribe_SlowSubscriberDoesNotBlock(t *testing.T) {
 	resetSubscribers(t)
 
 	// Fill the channel completely before notify is called.
-	ch, cancel := Subscribe()
+	_, cancel := Subscribe()
 	defer cancel()
+
+	// Access the internal bidirectional channel to pre-fill the buffer.
+	// resetSubscribers resets nextID to 0, so the subscriber ID is 0.
+	subsMu.RLock()
+	internalCh := subs[0].ch
+	subsMu.RUnlock()
 
 	full := make([]*types.Document, subscriberBufSize)
 	for i := range full {
 		full[i] = &types.Document{TracerName: "fill"}
 	}
 	for _, d := range full {
-		ch <- d //nolint:staticcheck // direct write to pre-fill buffer
+		internalCh <- d
 	}
 
 	// notifySubscribers must not block when buffer is full.

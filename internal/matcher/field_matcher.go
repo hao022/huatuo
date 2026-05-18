@@ -29,7 +29,6 @@ type FieldSpec[T any] struct {
 }
 
 type fieldRule[T any] struct {
-	name    string
 	re      *regexp.Regexp
 	extract func(T) string
 }
@@ -57,7 +56,6 @@ func NewFieldMatcher[T any](specs []FieldSpec[T]) (*FieldMatcher[T], error) {
 			return nil, fmt.Errorf("invalid pattern for field %q: %w", s.Name, err)
 		}
 		rules = append(rules, &fieldRule[T]{
-			name:    s.Name,
 			re:      re,
 			extract: s.Extract,
 		})
