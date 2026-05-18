@@ -18,7 +18,7 @@ import (
 	"fmt"
 
 	"huatuo-bamai/internal/cgroups"
-	"huatuo-bamai/internal/pattern"
+	"huatuo-bamai/internal/matcher"
 
 	"huatuo-bamai/internal/log"
 	"huatuo-bamai/internal/pod"
@@ -65,7 +65,10 @@ func (c *memoryVmStat) Update() ([]*metric.Data, error) {
 }
 
 func (c *memoryVmStat) containerVmstat() ([]*metric.Data, error) {
-	f := pattern.NewFilter(cfg.Vmstat.IncludedOnContainer, cfg.Vmstat.ExcludedOnContainer)
+	f, err := matcher.NewValueMatcher(cfg.Vmstat.IncludedOnContainer, cfg.Vmstat.ExcludedOnContainer)
+	if err != nil {
+		return nil, fmt.Errorf("vmstat container filter: %w", err)
+	}
 
 	containers, err := pod.NormalContainers()
 	if err != nil {
@@ -81,7 +84,7 @@ func (c *memoryVmStat) containerVmstat() ([]*metric.Data, error) {
 		}
 
 		for m, v := range raw {
-			if f.Ignored(m) {
+			if !f.Match(m) {
 				log.Debugf("Ignoring the cgroup memory.stat: %s", m)
 				continue
 			}
@@ -94,7 +97,10 @@ func (c *memoryVmStat) containerVmstat() ([]*metric.Data, error) {
 }
 
 func (c *memoryVmStat) hostVmstat() ([]*metric.Data, error) {
-	f := pattern.NewFilter(cfg.Vmstat.IncludedOnHost, cfg.Vmstat.ExcludedOnHost)
+	f, err := matcher.NewValueMatcher(cfg.Vmstat.IncludedOnHost, cfg.Vmstat.ExcludedOnHost)
+	if err != nil {
+		return nil, fmt.Errorf("vmstat host filter: %w", err)
+	}
 
 	raw, err := parseutil.RawKV(procfs.Path("vmstat"))
 	if err != nil {
@@ -103,7 +109,7 @@ func (c *memoryVmStat) hostVmstat() ([]*metric.Data, error) {
 
 	var metrics []*metric.Data
 	for m, v := range raw {
-		if f.Ignored(m) {
+		if !f.Match(m) {
 			log.Debugf("Ignoring the host vmstat: %s", m)
 			continue
 		}

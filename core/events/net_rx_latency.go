@@ -24,7 +24,7 @@ import (
 
 	"huatuo-bamai/internal/bpf"
 	"huatuo-bamai/internal/log"
-	"huatuo-bamai/internal/pattern"
+	"huatuo-bamai/internal/matcher"
 	"huatuo-bamai/internal/pod"
 	"huatuo-bamai/internal/storage"
 	"huatuo-bamai/internal/utils/bytesutil"
@@ -213,7 +213,7 @@ func (c *netRecvLatTracing) Start(ctx context.Context) error {
 			}
 
 			// known issue filter
-			_, found := pattern.Match(cfg.IssuesList, title)
+			_, found := matcher.Classify(cfg.IssuesList, title)
 			if found {
 				log.Debugf("net_rx_latency known issue")
 				continue

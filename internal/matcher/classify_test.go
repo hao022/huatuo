@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package pattern
+package matcher
 
 import (
 	"testing"
@@ -20,7 +20,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestMatch(t *testing.T) {
+func TestClassify(t *testing.T) {
 	tests := []struct {
 		name    string
 		issues  [][]string
@@ -45,7 +45,7 @@ func TestMatch(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, matched := Match(tt.issues, tt.value)
+			got, matched := Classify(tt.issues, tt.value)
 			assert.Equal(t, tt.want, got)
 			assert.Equal(t, tt.matched, matched)
 		})

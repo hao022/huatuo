@@ -1,4 +1,4 @@
-// Copyright 2025 The HuaTuo Authors
+// Copyright 2026 The HuaTuo Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,23 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package pattern
+package matcher
 
-import (
-	"regexp"
-)
-
-func Match(patternList [][]string, value string) (string, bool) {
-	for _, p := range patternList {
-		if len(p) != 2 {
-			return "none", false
-		}
-
-		reg := regexp.MustCompile(p[1])
-		if reg.MatchString(value) {
-			return p[0], true
-		}
-	}
-
-	return "none", false
+// Rule holds a field selector and a regex pattern for use in ContainerMatcher.
+// Field is the container field name (e.g. FieldTypeContainerHostname);
+// Pattern is the regular expression to match against that field's value.
+type Rule struct {
+	Field   string
+	Pattern string
 }

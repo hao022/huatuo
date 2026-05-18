@@ -29,7 +29,7 @@ import (
 	"huatuo-bamai/internal/cgroups/stats"
 	"huatuo-bamai/internal/flamegraph"
 	"huatuo-bamai/internal/log"
-	"huatuo-bamai/internal/pattern"
+	"huatuo-bamai/internal/matcher"
 	"huatuo-bamai/internal/pod"
 	"huatuo-bamai/internal/storage"
 	"huatuo-bamai/pkg/tracing"
@@ -87,14 +87,14 @@ type containersCPUIdleMap map[string]*containerCPUInfo
 
 var containersCPUIdle = make(containersCPUIdleMap)
 
-func updateContainersCPUIdle(f *pattern.Filter) error {
+func updateContainersCPUIdle(f *matcher.ContainerMatcher) error {
 	containers, err := pod.NormalContainers()
 	if err != nil {
 		return err
 	}
 
 	for _, container := range containers {
-		if f != nil && f.IgnoreContainer(container) {
+		if !f.Match(container) {
 			continue
 		}
 
@@ -299,12 +299,17 @@ func (c *cpuIdleTracing) Start(ctx context.Context) error {
 		intervalTracing: cfg.CPUIdle.IntervalTracing,
 	}
 
+	containerFilter, err := cfg.CPUIdle.Filter.Build()
+	if err != nil {
+		return fmt.Errorf("container filter: %w", err)
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
 			return types.ErrExitByCancelCtx
 		case <-time.After(time.Duration(interval) * time.Second):
-			if err := updateContainersCPUIdle(cfg.CPUIdle.Filter); err != nil {
+			if err := updateContainersCPUIdle(containerFilter); err != nil {
 				return err
 			}
 

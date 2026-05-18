@@ -14,21 +14,37 @@
 
 package autotracing
 
-import "huatuo-bamai/internal/pattern"
+import "huatuo-bamai/internal/matcher"
+
+// ContainerFilterConfig is the serializable form of a container filter.
+// It is converted to a *matcher.ContainerMatcher at runtime.
+type ContainerFilterConfig struct {
+	Include []*matcher.Rule `toml:"include,omitempty"`
+	Exclude []*matcher.Rule `toml:"exclude,omitempty"`
+}
+
+// Build compiles the config into a ContainerMatcher.
+// Returns nil, nil when the config is nil (no filtering).
+func (c *ContainerFilterConfig) Build() (*matcher.ContainerMatcher, error) {
+	if c == nil {
+		return nil, nil
+	}
+	return matcher.NewContainerMatcherFromRules(c.Include, c.Exclude)
+}
 
 // Config holds autotracing configuration.
 type Config struct {
 	CPUIdle struct {
-		UserThreshold         int64 `default:"75"`
-		SysThreshold          int64 `default:"45"`
-		UsageThreshold        int64 `default:"90"`
-		DeltaUserThreshold    int64 `default:"45"`
-		DeltaSysThreshold     int64 `default:"20"`
-		DeltaUsageThreshold   int64 `default:"55"`
-		Interval              int64 `default:"10"`
-		IntervalTracing       int64 `default:"1800"`
-		RunTracingToolTimeout int64 `default:"10"`
-		Filter                *pattern.Filter
+		UserThreshold         int64                  `default:"75"`
+		SysThreshold          int64                  `default:"45"`
+		UsageThreshold        int64                  `default:"90"`
+		DeltaUserThreshold    int64                  `default:"45"`
+		DeltaSysThreshold     int64                  `default:"20"`
+		DeltaUsageThreshold   int64                  `default:"55"`
+		Interval              int64                  `default:"10"`
+		IntervalTracing       int64                  `default:"1800"`
+		RunTracingToolTimeout int64                  `default:"10"`
+		Filter                *ContainerFilterConfig `toml:"filter"`
 	}
 
 	CPUSys struct {

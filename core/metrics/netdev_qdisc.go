@@ -18,7 +18,9 @@ package collector
 //	- qdisc_linux.go
 
 import (
-	"huatuo-bamai/internal/pattern"
+	"fmt"
+
+	"huatuo-bamai/internal/matcher"
 	"huatuo-bamai/pkg/metric"
 	"huatuo-bamai/pkg/tracing"
 
@@ -63,7 +65,10 @@ func newQdiscCollector() (*tracing.EventTracingAttr, error) {
 // 2: qidsc <kind> handle1 parent1
 // 3: qidsc <kind> handle2 parent1
 func (c *qdiscCollector) Update() ([]*metric.Data, error) {
-	f := pattern.NewFilter(cfg.Qdisc.DeviceIncluded, cfg.Qdisc.DeviceExcluded)
+	f, err := matcher.NewValueMatcher(cfg.Qdisc.DeviceIncluded, cfg.Qdisc.DeviceExcluded)
+	if err != nil {
+		return nil, fmt.Errorf("qdisc device filter: %w", err)
+	}
 
 	allQdisc, err := qdisc.Get()
 	if err != nil {
@@ -72,7 +77,7 @@ func (c *qdiscCollector) Update() ([]*metric.Data, error) {
 
 	allQdiscMap := make(map[string]map[uint32]*qdiscStats)
 	for _, q := range allQdisc {
-		if f.Ignored(q.IfaceName) || q.Kind == "noqueue" {
+		if !f.Match(q.IfaceName) || q.Kind == "noqueue" {
 			continue
 		}
 

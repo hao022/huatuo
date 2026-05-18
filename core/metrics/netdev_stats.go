@@ -24,7 +24,7 @@ import (
 	"strconv"
 
 	"huatuo-bamai/internal/log"
-	"huatuo-bamai/internal/pattern"
+	"huatuo-bamai/internal/matcher"
 	"huatuo-bamai/internal/pod"
 	"huatuo-bamai/internal/procfs"
 	"huatuo-bamai/pkg/metric"
@@ -90,7 +90,10 @@ func (c *netdevCollector) Update() ([]*metric.Data, error) {
 }
 
 func (c *netdevCollector) getStats(container *pod.Container) (netdevStats, error) {
-	f := pattern.NewFilter(cfg.NetdevStats.DeviceIncluded, cfg.NetdevStats.DeviceExcluded)
+	f, err := matcher.NewValueMatcher(cfg.NetdevStats.DeviceIncluded, cfg.NetdevStats.DeviceExcluded)
+	if err != nil {
+		return nil, fmt.Errorf("netdev device filter: %w", err)
+	}
 
 	if cfg.NetdevStats.EnableNetlink {
 		return c.netlinkStats(container, f)
@@ -98,7 +101,7 @@ func (c *netdevCollector) getStats(container *pod.Container) (netdevStats, error
 	return c.procStats(container, f)
 }
 
-func (c *netdevCollector) netlinkStats(container *pod.Container, f *pattern.Filter) (netdevStats, error) {
+func (c *netdevCollector) netlinkStats(container *pod.Container, f *matcher.ValueMatcher) (netdevStats, error) {
 	pid := container.InitPidOrInitnsPid()
 	path := procfs.Path(strconv.Itoa(pid), "ns/net")
 
@@ -156,7 +159,7 @@ func (c *netdevCollector) netlinkStats(container *pod.Container, f *pattern.Filt
 				RXOtherhostDropped: 0,
 			}
 		}
-		if f.Ignored(name) {
+		if !f.Match(name) {
 			log.Debugf("Ignoring device: %s", name)
 			continue
 		}
@@ -204,7 +207,7 @@ func (c *netdevCollector) netlinkStats(container *pod.Container, f *pattern.Filt
 	return metrics, nil
 }
 
-func (c *netdevCollector) procStats(container *pod.Container, f *pattern.Filter) (netdevStats, error) {
+func (c *netdevCollector) procStats(container *pod.Container, f *matcher.ValueMatcher) (netdevStats, error) {
 	pid := container.InitPidOrInitnsPid()
 
 	fs, err := procfs.NewProc(pid)
@@ -220,7 +223,7 @@ func (c *netdevCollector) procStats(container *pod.Container, f *pattern.Filter)
 	metrics := netdevStats{}
 	for name := range netdev {
 		stats := netdev[name]
-		if f.Ignored(name) {
+		if !f.Match(name) {
 			log.Debugf("Ignoring device: %s", name)
 			continue
 		}

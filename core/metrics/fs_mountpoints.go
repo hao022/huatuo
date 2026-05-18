@@ -15,7 +15,9 @@
 package collector
 
 import (
-	"huatuo-bamai/internal/pattern"
+	"fmt"
+
+	"huatuo-bamai/internal/matcher"
 	"huatuo-bamai/internal/procfs"
 	"huatuo-bamai/pkg/metric"
 	"huatuo-bamai/pkg/tracing"
@@ -45,11 +47,14 @@ func (c *mountPointCollector) Update() ([]*metric.Data, error) {
 		return nil, err
 	}
 
-	f := pattern.NewFilter(cfg.MountPointStat.MountPointsIncluded, "")
+	f, err := matcher.NewValueMatcher(cfg.MountPointStat.MountPointsIncluded, "")
+	if err != nil {
+		return nil, fmt.Errorf("mount point filter: %w", err)
+	}
 
 	metrics := []*metric.Data{}
 	for _, v := range mountinfo {
-		if f.Ignored(v.MountPoint) {
+		if !f.Match(v.MountPoint) {
 			continue
 		}
 

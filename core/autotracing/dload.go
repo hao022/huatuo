@@ -24,7 +24,7 @@ import (
 	"huatuo-bamai/internal/cgroups"
 	"huatuo-bamai/internal/cgroups/paths"
 	"huatuo-bamai/internal/log"
-	"huatuo-bamai/internal/pattern"
+	"huatuo-bamai/internal/matcher"
 	"huatuo-bamai/internal/pod"
 	"huatuo-bamai/internal/storage"
 	"huatuo-bamai/pkg/tracing"
@@ -193,7 +193,7 @@ func buildAndSaveDloadContainer(thresh *dloadThreshold, container *containerDloa
 	}
 
 	// Check if this is caused by known issues.
-	knownIssue, _ := pattern.Match(cfg.IssuesList, stackCgrp)
+	knownIssue, _ := matcher.Classify(cfg.IssuesList, stackCgrp)
 	data.KnownIssue = knownIssue
 
 	storage.Save("dload", containerID, time.Now(), data)

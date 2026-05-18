@@ -25,7 +25,7 @@ import (
 	"strings"
 
 	"huatuo-bamai/internal/log"
-	"huatuo-bamai/internal/pattern"
+	"huatuo-bamai/internal/matcher"
 	"huatuo-bamai/internal/pod"
 	"huatuo-bamai/internal/procfs"
 	"huatuo-bamai/pkg/metric"
@@ -59,7 +59,10 @@ func (c *netstatCollector) Update() ([]*metric.Data, error) {
 	// append init namespace into containers
 	containers[""] = nil
 
-	f := pattern.NewFilter(cfg.Netstat.Included, cfg.Netstat.Excluded)
+	f, err := matcher.NewValueMatcher(cfg.Netstat.Included, cfg.Netstat.Excluded)
+	if err != nil {
+		return nil, fmt.Errorf("netstat filter: %w", err)
+	}
 
 	var metrics []*metric.Data
 	for _, container := range containers {
@@ -74,7 +77,7 @@ func (c *netstatCollector) Update() ([]*metric.Data, error) {
 	return metrics, nil
 }
 
-func buildNetAndSnmpStat(container *pod.Container, f *pattern.Filter) ([]*metric.Data, error) {
+func buildNetAndSnmpStat(container *pod.Container, f *matcher.ValueMatcher) ([]*metric.Data, error) {
 	pid := container.InitPidOrInitnsPid()
 
 	netStats, err := parseNetStat(procfs.Path(strconv.Itoa(pid), "net", "netstat"))
@@ -102,7 +105,7 @@ func buildNetAndSnmpStat(container *pod.Container, f *pattern.Filter) ([]*metric
 			}
 
 			key := protocol + "_" + name
-			if f.Ignored(key) {
+			if !f.Match(key) {
 				log.Debugf("Ignoring netstat metric %s", key)
 				continue
 			}
