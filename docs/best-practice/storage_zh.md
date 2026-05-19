@@ -1,25 +1,82 @@
 ---
 title: 存储服务
 type: docs
-description:
+description: ""
 author: HUATUO Team
 date: 2026-05-05
 weight: 1
 ---
 
-HUATUO（华佗）支持将采集到的 Linux 内核事件与 AutoTracing 数据写入多种后端存储。本文介绍 Elasticsearch 和 OpenSearch 的配置方法。示例基于 Docker 镜像，生产环境中只需将地址替换为实际存储服务地址，配置方式一致。
+{{% alert color="info" title="🎯 关于 HUATUO（华佗）" %}}
+<div style="text-align: center;">
+HUATUO（华佗）是由滴滴开源并依托 CCF（中国计算机学会）孵化的操作系统深度观测项目，专注为云原生通用计算、AI 计算、云服务、基础服务等提供操作系统内核级深度观测能力。
+</div>
+{{% /alert %}}
+
+## 📖 概述
+
+HUATUO（华佗）支持将采集到的 Linux 内核事件与 AutoTracing 数据持久化写入外部存储后端。当前支持 Elasticsearch 和 OpenSearch 两种存储系统。
+
+采集到的事件在序列化为 JSON 后，同时写入节点本地目录（`huatuo-local/`）和配置的远端存储后端。本地目录保留事件的本地副本，远端存储提供持久化与结构化查询能力。
+
+本文介绍 Elasticsearch 和 OpenSearch 的配置与验证方法。示例基于 Docker 部署，生产环境只需将地址替换为实际服务地址，配置方式一致。
+
+---
+
+## 🎯 应用场景
+
+### Kubernetes 云原生故障溯源
+
+容器化环境中，Pod OOM、节点 Hung Task 等内核事件具有短暂性，日志往往在事件发生后被清理。将事件写入 Elasticsearch 或 OpenSearch 后，运维团队可按时间范围查询历史异常时间线，在事后复盘阶段精确定位间歇性故障的根因。
+
+### AI 计算集群稳定性审计
+
+GPU 训练集群长期运行过程中，`ras` 硬件错误、`iotracing` I/O 延迟等事件的历史分布对容量规划和硬件健康评估至关重要。将采集数据持久化后，可通过聚合查询建立节点稳定性基线，为主动维护提供数据依据。
+
+### 合规与事件留存
+
+等保合规要求系统异常事件具备可追溯性。将 HUATUO 采集的内核事件写入 OpenSearch 并配置索引生命周期策略，可满足对事件留存周期和查询能力的合规要求。
+
+### 可观测性平台集成
+
+Elasticsearch 和 OpenSearch 均提供与 Grafana 的原生数据源对接能力。将 HUATUO 事件写入存储后，可在 Grafana 中构建内核事件趋势面板，与应用层指标叠加展示，实现历史数据分析与告警回顾。
+
+---
+
+## 💎 价值
+
+| 维度         | 仅本地存储                          | 接入外部存储后端                              |
+|------------|-----------------------------------|----------------------------------------------|
+| 数据持久性  | 受节点磁盘容量限制，重启后可能丢失    | 数据持久化至分布式存储，支持长期保留           |
+| 查询能力    | 无结构化查询，依赖文件搜索            | 支持全文检索、字段过滤、时间范围聚合           |
+| 可视化集成  | 不支持                              | 可直接对接 Grafana、Kibana 等可视化平台        |
+| 多节点汇聚  | 数据分散在各节点本地                  | 集中写入统一存储，支持跨节点查询               |
+| 合规留存    | 难以满足留存周期要求                  | 可配置索引生命周期策略，满足合规留存要求       |
+
+---
+
+## 🚀 使用
 
 ### OpenSearch 存储
 
 #### 1. 部署 OpenSearch
+
 ```bash
-$ docker pull opensearchproject/opensearch:2.6.0
-$ docker run -d --name opensearch -p 9200:9200 -p 9600:9600 -e "discovery.type=single-node" opensearchproject/opensearch:2.6.0
+docker pull opensearchproject/opensearch:2.6.0
+docker run -d --name opensearch -p 9200:9200 -p 9600:9600 \
+  -e "discovery.type=single-node" \
+  opensearchproject/opensearch:2.6.0
 ```
 
 #### 2. 验证服务状态
+
 ```bash
-$ curl -k -u admin:admin https://localhost:9200
+curl -k -u admin:admin https://localhost:9200
+```
+
+返回示例：
+
+```json
 {
   "name" : "22ca72df78c0",
   "cluster_name" : "docker-cluster",
@@ -40,13 +97,16 @@ $ curl -k -u admin:admin https://localhost:9200
 ```
 
 若验证失败，可通过以下命令查看容器日志：
+
 ```bash
-$ docker logs opensearch
+docker logs opensearch
 ```
 
 #### 3. 配置 huatuo-bamai
 
-```bash
+在 `huatuo-bamai.conf` 中添加以下配置。OpenSearch 容器镜像默认用户名和密码均为 `admin`。存储配置的详细说明请参见《配置指南》章节。
+
+```toml
 [Storage.ES]
     Address = "https://127.0.0.1:9200"
     Index = "huatuo_bamai"
@@ -54,26 +114,26 @@ $ docker logs opensearch
     Password = "admin"
 ```
 
-OpenSearch 容器镜像默认用户名、密码均为 admin。存储配置的详细说明请参见《配置指南》章节。
-
 #### 4. 启动 huatuo-bamai
 
-通过 `--config-dir` 指定配置文件所在目录。
+通过 `--config-dir` 指定配置文件所在目录：
 
 ```bash
 ./_output/bin/huatuo-bamai --region dev --config-dir .
 ```
 
-当本地存储目录 `huatuo-local` 中生成文件（例如 net_rx_latency）时，说明已成功捕获内核事件。可使用以下命令从 OpenSearch 查询数据：
+当本地存储目录 `huatuo-local/` 中生成文件（例如 `net_rx_latency`）时，说明已成功采集到内核事件。可使用以下命令从 OpenSearch 查询数据：
 
 ```bash
-$ curl -k -u admin:admin -X GET "https://localhost:9200/huatuo_bamai/_search?pretty" -H 'Content-Type: application/json' -d '{
-    "query": {
-        "match_all": {}
-    }
-}'
+curl -k -u admin:admin \
+  -X GET "https://localhost:9200/huatuo_bamai/_search?pretty" \
+  -H "Content-Type: application/json" \
+  -d '{"query": {"match_all": {}}}'
+```
 
-...
+返回示例：
+
+```json
 {
     "_index" : "huatuo_bamai",
     "_id" : "yjPG_50Bu_OF-hukxKR7",
@@ -91,7 +151,6 @@ $ curl -k -u admin:admin -X GET "https://localhost:9200/huatuo_bamai/_search?pre
         "pid" : 0,
         "where" : "TO_NETIF_RCV",
         "latency_ms" : 1776078133565,
-        "state" : "<nil>",
         "saddr" : "127.0.0.1",
         "daddr" : "127.0.0.1",
         "sport" : 37736,
@@ -104,21 +163,30 @@ $ curl -k -u admin:admin -X GET "https://localhost:9200/huatuo_bamai/_search?pre
 }
 ```
 
-### ElasticSearch 存储
+---
+
+### Elasticsearch 存储
 
 #### 1. 部署 Elasticsearch
+
 ```bash
-$ docker pull docker.elastic.co/elasticsearch/elasticsearch:8.15.5
-$ docker run -d --name elasticsearch -p 9200:9200 -p 9300:9300 \
-        -e "discovery.type=single-node" \
-        -e "ES_JAVA_OPTS=-Xms1g -Xmx1g" \
-        -e "ELASTIC_PASSWORD=123456" \
-        docker.elastic.co/elasticsearch/elasticsearch:8.15.5
+docker pull docker.elastic.co/elasticsearch/elasticsearch:8.15.5
+docker run -d --name elasticsearch -p 9200:9200 -p 9300:9300 \
+  -e "discovery.type=single-node" \
+  -e "ES_JAVA_OPTS=-Xms1g -Xmx1g" \
+  -e "ELASTIC_PASSWORD=123456" \
+  docker.elastic.co/elasticsearch/elasticsearch:8.15.5
 ```
 
 #### 2. 验证服务状态
+
 ```bash
-$ curl -k -u elastic:123456 https://localhost:9200
+curl -k -u elastic:123456 https://localhost:9200
+```
+
+返回示例：
+
+```json
 {
   "name" : "ab0b562f8dbd",
   "cluster_name" : "docker-cluster",
@@ -140,7 +208,9 @@ $ curl -k -u elastic:123456 https://localhost:9200
 
 #### 3. 配置 huatuo-bamai
 
-```bash
+在 `huatuo-bamai.conf` 中添加以下配置。Elasticsearch 容器镜像默认用户名为 `elastic`，密码通过环境变量 `ELASTIC_PASSWORD` 设置。存储配置的详细说明请参见《配置指南》章节。
+
+```toml
 [Storage.ES]
     Address = "https://127.0.0.1:9200"
     Index = "huatuo_bamai"
@@ -148,26 +218,26 @@ $ curl -k -u elastic:123456 https://localhost:9200
     Password = "123456"
 ```
 
-Elasticsearch 容器镜像默认用户名为 elastic，密码通过环境变量 ELASTIC_PASSWORD 设置。存储配置的详细说明请参见《配置指南》章节。
-
 #### 4. 启动 huatuo-bamai
 
-通过 `--config-dir` 指定配置文件所在目录。
+通过 `--config-dir` 指定配置文件所在目录：
 
 ```bash
 ./_output/bin/huatuo-bamai --region dev --config-dir .
 ```
 
-当本地存储目录 `huatuo-local` 中生成文件（例如 `net_rx_latency`）时，说明已成功捕获内核事件。可使用以下命令从 Elasticsearch 查询数据：
+当本地存储目录 `huatuo-local/` 中生成文件（例如 `net_rx_latency`）时，说明已成功采集到内核事件。可使用以下命令从 Elasticsearch 查询数据：
 
 ```bash
-$ curl -k -u admin:admin -X GET "https://localhost:9200/huatuo_bamai/_search?pretty" -H 'Content-Type: application/json' -d '{
-    "query": {
-        "match_all": {}
-    }
-}'
+curl -k -u elastic:123456 \
+  -X GET "https://localhost:9200/huatuo_bamai/_search?pretty" \
+  -H "Content-Type: application/json" \
+  -d '{"query": {"match_all": {}}}'
+```
 
-...
+返回示例：
+
+```json
 {
     "_index" : "huatuo_bamai",
     "_id" : "WtNZAJ4BQ8x-thPHEY1i",
@@ -185,7 +255,6 @@ $ curl -k -u admin:admin -X GET "https://localhost:9200/huatuo_bamai/_search?pre
         "pid" : 0,
         "where" : "TO_NETIF_RCV",
         "latency_ms" : 1776078133565,
-        "state" : "<nil>",
         "saddr" : "127.0.0.1",
         "daddr" : "127.0.0.1",
         "sport" : 2379,
@@ -194,5 +263,84 @@ $ curl -k -u admin:admin -X GET "https://localhost:9200/huatuo_bamai/_search?pre
         "ack_seq" : 1960972383,
         "pkt_len" : 91
       }
+    }
 }
 ```
+
+---
+
+## ⚙️ 原理
+
+### 系统架构
+
+HUATUO Storage 模块部署在节点上，将采集到的内核事件同时写入本地目录和 Elasticsearch 或 OpenSearch。两种存储后端共用同一套 `[Storage.ES]` 配置接口，通过地址区分。
+
+```mermaid
+graph TB
+    subgraph kernel["Linux 内核"]
+        K1[内核事件]
+        K2[AutoTracing]
+    end
+
+    subgraph huatuo["HUATUO Agent（节点级）"]
+        T["采集层"]
+        L["本地目录\nhuatuo-local/"]
+        S["Storage 模块\n同步写入"]
+    end
+
+    subgraph backends["存储后端"]
+        ES[Elasticsearch]
+        OS[OpenSearch]
+    end
+
+    kernel --> T
+    T --> L
+    T --> S
+    S -->|Index API| ES
+    S -->|Index API| OS
+```
+
+### 数据写入流程
+
+HUATUO 采集到内核事件后，Storage 模块将事件同时写入本地目录和远端存储后端。两路写入并发执行，本地目录保留副本，远端存储提供持久化与查询能力。
+
+```mermaid
+sequenceDiagram
+    participant T as 采集层
+    participant L as 本地目录（huatuo-local/）
+    participant S as Storage 模块
+    participant B as ES / OpenSearch
+
+    T->>S: 采集到内核事件，序列化为 JSON
+    par 同时写入
+        S->>L: 写入本地文件
+    and
+        S->>B: 写入远端存储（Index API）
+        B-->>S: 写入确认（200 OK）
+    end
+```
+
+### 存储写入流程
+
+从内核事件产生到写入存储后端，经过采集、序列化、同步写入三个阶段。本地目录与远端存储并发写入，互不阻塞。
+
+```mermaid
+flowchart LR
+    A([内核事件触发]) --> B["采集\n序列化为 JSON"]
+    B --> C["Storage 模块\n同步写入"]
+    C --> D["写入本地目录\nhuatuo-local/"]
+    C --> E["写入 ES / OpenSearch\nIndex API"]
+```
+
+---
+
+## 🌟 结尾
+
+{{% alert color="info" %}}
+<div style="text-align: center;">
+🌟 欢迎 Star: <a href="https://github.com/ccfos/huatuo" target="_blank">https://github.com/ccfos/huatuo</a>
+<br><br>
+👀 欢迎订阅官方微信公众号<br>
+<img src="/img/contact-weixin.png" alt="微信公众号二维码" style="max-width: 200px; margin-top: 10px;">
+</div>
+{{% /alert %}}
