@@ -261,7 +261,8 @@ func kubeletSyncContainers() error {
 			containerStatus := c[1].(*corev1.ContainerStatus)
 			containerID, err := parseContainerIDInPodStatus(containerStatus.ContainerID)
 			if err != nil {
-				return fmt.Errorf("failed to parse container id %s in pod %s status: %w", containerStatus.ContainerID, pod.Name, err)
+				log.Warnf("failed to parse container id %s in pod %s status: %v", containerStatus.ContainerID, pod.Name, err)
+				continue
 			}
 
 			newContainers[containerID] = &containerInfo{
@@ -437,8 +438,14 @@ func parseContainerIDInPodStatus(data string) (string, error) {
 		return "", fmt.Errorf("invalid container id: %s", data)
 	}
 
-	// init the container provider
-	initContainerProviderEnv(parts[0], dockerAPIVersion)
+	provider, err := containerProviderFrom(parts[0])
+	if err != nil {
+		return "", err
+	}
+
+	if err := initContainerProviderEnv(provider, dockerAPIVersion); err != nil {
+		return "", fmt.Errorf("init container provider for containerID %q: %w", data, err)
+	}
 
 	return parts[1], nil
 }

@@ -15,117 +15,24 @@
 package pod
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
-	"path"
 	"path/filepath"
-	"sync"
-	"time"
-
-	"huatuo-bamai/internal/pidfile"
 
 	dockertypes "github.com/docker/docker/api/types"
-	dockerclient "github.com/docker/docker/client"
-	k8sremote "k8s.io/cri-client/pkg"
+
+	"huatuo-bamai/internal/pidfile"
 )
-
-const (
-	containerEnvNoop = iota
-	containerEnvDocker
-	containerEnvContainerd
-)
-
-var (
-	// detect whether the current environment is Docker or containerd.
-	currContainerEnv int
-
-	// Docker Root Dir from `docker info`
-	dockerRootDir string
-	// Containerd State Dir. More information see https://github.com/containerd/containerd/blob/main/docs/cri/config.md
-	containerdStateDir           string
-	initContainerProviderEnvOnce sync.Once
-
-	// dockerAPIVersion is set from ManagerInitCtx.
-	dockerAPIVersion string
-)
-
-func initContainerProviderEnv(containerEnv, apiVersion string) {
-	initContainerProviderEnvOnce.Do(func() {
-		var err error
-		switch containerEnv {
-		case "docker":
-			err = initDockerProviderEnv(apiVersion)
-		case "containerd":
-			err = initContainerdProviderEnv()
-		default:
-			err = fmt.Errorf("invalid the container provider: %s", containerEnv)
-		}
-
-		if err != nil {
-			panic(err)
-		}
-	})
-}
-
-func initDockerProviderEnv(apiVersion string) error {
-	client, err := dockerclient.NewClientWithOpts(dockerclient.FromEnv, dockerclient.WithVersion(apiVersion))
-	if err != nil {
-		return fmt.Errorf("create docker client, err: %w", err)
-	}
-	defer client.Close()
-
-	// timeout: 5s
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	info, err := client.Info(ctx)
-	if err != nil {
-		return fmt.Errorf("get docker info, err: %w", err)
-	}
-
-	dockerRootDir = info.DockerRootDir
-	currContainerEnv = containerEnvDocker
-	return nil
-}
-
-func initContainerdProviderEnv() error {
-	// timeout: 5s
-	client, err := k8sremote.NewRemoteRuntimeService(kubeletRuntimeEndpoint, 5*time.Second, nil, nil)
-	if err != nil {
-		return fmt.Errorf("create containerd client, err: %w", err)
-	}
-
-	// timeout: 5s
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	status, err := client.Status(ctx, true)
-	if err != nil {
-		return fmt.Errorf("get containerd status, err: %w", err)
-	}
-
-	config := struct {
-		StateDir string `json:"stateDir"`
-	}{}
-	if err := json.Unmarshal([]byte(status.Info["config"]), &config); err != nil {
-		return fmt.Errorf("unmarshal containerd config, err: %w", err)
-	}
-
-	containerdStateDir = path.Dir(config.StateDir)
-	currContainerEnv = containerEnvContainerd
-	return nil
-}
 
 func containerInitPid(containerID string) (int, error) {
-	switch currContainerEnv {
-	case containerEnvDocker:
+	switch currContainerProvider {
+	case containerProviderDocker:
 		return containerInitPidInDocker(containerID)
-	case containerEnvContainerd:
+	case containerProviderContainerd:
 		return containerInitPidInContainerd(containerID)
 	default:
-		return -1, fmt.Errorf("invalid container env")
+		return -1, fmt.Errorf("container provider not initialized")
 	}
 }
 
