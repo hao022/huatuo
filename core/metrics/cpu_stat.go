@@ -155,7 +155,8 @@ func (c *cpuStatCollector) Update() ([]*metric.Data, error) {
 			continue
 		}
 
-		metrics = append(metrics, metric.NewContainerGaugeData(container, "wait_rate", containerDataCache.waitrateHierarchy, "wait rate for the containers", nil),
+		metrics = append(
+			metrics, metric.NewContainerGaugeData(container, "wait_rate", containerDataCache.waitrateHierarchy, "wait rate for the containers", nil),
 			metric.NewContainerGaugeData(container, "inner_wait_rate", containerDataCache.waitrateInner, "inner wait rate for the containers", nil),
 			metric.NewContainerGaugeData(container, "exter_wait_rate", containerDataCache.waitrateExter, "exter wait rate for the containers", nil),
 			metric.NewContainerGaugeData(container, "throttle_wait_rate", containerDataCache.waitrateThrottled, "throttle wait rate for the containers", nil),

@@ -83,7 +83,8 @@ func metaxCollectMetrics(ctx context.Context) ([]*metric.Data, error) {
 		}
 		log.Debugf("operation %s not supported", operationGetSdkVersion)
 	} else {
-		metrics = append(metrics,
+		metrics = append(
+			metrics,
 			metric.NewGaugeData("sdk_info", 1, "GPU SDK info.", map[string]string{
 				"version": sdkVersion,
 			}),
@@ -115,7 +116,8 @@ func metaxCollectMetrics(ctx context.Context) ([]*metric.Data, error) {
 			}
 			log.Debugf("operation %s not supported on gpu 0", operationGetDriverVersion)
 		} else {
-			metrics = append(metrics,
+			metrics = append(
+				metrics,
 				metric.NewGaugeData("driver_info", 1, "GPU driver info.", map[string]string{
 					"version": driverVersion,
 				}),
@@ -157,7 +159,8 @@ func metaxCollectGpuMetrics(ctx context.Context, gpuId uint32) ([]*metric.Data, 
 	if err != nil {
 		return nil, fmt.Errorf("failed to get gpu info: %w", err)
 	}
-	metrics = append(metrics,
+	metrics = append(
+		metrics,
 		metric.NewGaugeData("info", 1, "GPU info.", map[string]string{
 			"gpu":          strconv.Itoa(int(gpuId)),
 			"model":        gpuInfo.Model,
@@ -183,7 +186,8 @@ func metaxCollectGpuMetrics(ctx context.Context, gpuId uint32) ([]*metric.Data, 
 			totalPower += float64(info.Power)
 		}
 
-		metrics = append(metrics,
+		metrics = append(
+			metrics,
 			metric.NewGaugeData("board_power_watts", totalPower/1000, "GPU board power.", map[string]string{
 				"gpu": strconv.Itoa(int(gpuId)),
 			}),
@@ -199,7 +203,8 @@ func metaxCollectGpuMetrics(ctx context.Context, gpuId uint32) ([]*metric.Data, 
 		}
 		log.Debugf("operation %s not supported on gpu %d", operationGetPcieLinkInfo, gpuId)
 	} else {
-		metrics = append(metrics,
+		metrics = append(
+			metrics,
 			metric.NewGaugeData("pcie_link_speed_gt_per_second", float64(pcieLinkInfo.Speed), "GPU PCIe current link speed.", map[string]string{
 				"gpu": strconv.Itoa(int(gpuId)),
 			}),
@@ -218,7 +223,8 @@ func metaxCollectGpuMetrics(ctx context.Context, gpuId uint32) ([]*metric.Data, 
 		}
 		log.Debugf("operation %s not supported on gpu %d", operationGetPcieThroughputInfo, gpuId)
 	} else {
-		metrics = append(metrics,
+		metrics = append(
+			metrics,
 			metric.NewGaugeData("pcie_receive_bytes_per_second", float64(pcieThroughputInfo.ReceiveRate)*1000*1000, "GPU PCIe receive throughput.", map[string]string{
 				"gpu": strconv.Itoa(int(gpuId)),
 			}),
@@ -238,7 +244,8 @@ func metaxCollectGpuMetrics(ctx context.Context, gpuId uint32) ([]*metric.Data, 
 		log.Debugf("operation %s not supported on gpu %d", operationListMetaxlinkLinkInfos, gpuId)
 	} else {
 		for i, info := range metaxlinkLinkInfos {
-			metrics = append(metrics,
+			metrics = append(
+				metrics,
 				metric.NewGaugeData("metaxlink_link_speed_gt_per_second", float64(info.Speed), "GPU MetaXLink current link speed.", map[string]string{
 					"gpu":       strconv.Itoa(int(gpuId)),
 					"metaxlink": strconv.Itoa(i + 1),
@@ -261,7 +268,8 @@ func metaxCollectGpuMetrics(ctx context.Context, gpuId uint32) ([]*metric.Data, 
 		log.Debugf("operation %s not supported on gpu %d", operationListMetaxlinkThroughputInfos, gpuId)
 	} else {
 		for i, info := range metaxlinkThroughputInfos {
-			metrics = append(metrics,
+			metrics = append(
+				metrics,
 				metric.NewGaugeData("metaxlink_receive_bytes_per_second", float64(info.ReceiveRate)*1000*1000, "GPU MetaXLink receive throughput.", map[string]string{
 					"gpu":       strconv.Itoa(int(gpuId)),
 					"metaxlink": strconv.Itoa(i + 1),
@@ -284,7 +292,8 @@ func metaxCollectGpuMetrics(ctx context.Context, gpuId uint32) ([]*metric.Data, 
 		log.Debugf("operation %s not supported on gpu %d", operationListMetaxlinkTrafficStatInfos, gpuId)
 	} else {
 		for i, info := range metaxlinkTrafficStatInfos {
-			metrics = append(metrics,
+			metrics = append(
+				metrics,
 				metric.NewCounterData("metaxlink_receive_bytes_total", float64(info.Receive), "GPU MetaXLink receive data size.", map[string]string{
 					"gpu":       strconv.Itoa(int(gpuId)),
 					"metaxlink": strconv.Itoa(i + 1),
@@ -307,7 +316,8 @@ func metaxCollectGpuMetrics(ctx context.Context, gpuId uint32) ([]*metric.Data, 
 		log.Debugf("operation %s not supported on gpu %d", operationListMetaxlinkAerErrorsInfos, gpuId)
 	} else {
 		for i, info := range metaxlinkAerErrorsInfos {
-			metrics = append(metrics,
+			metrics = append(
+				metrics,
 				metric.NewCounterData("metaxlink_aer_errors_total", float64(info.CorrectableErrorsCount), "GPU MetaXLink AER errors count.", map[string]string{
 					"gpu":        strconv.Itoa(int(gpuId)),
 					"metaxlink":  strconv.Itoa(i + 1),
@@ -360,7 +370,8 @@ func metaxCollectDieMetrics(ctx context.Context, gpuId, dieId uint32, series gpu
 		}
 		log.Debugf("operation %s not supported on gpu %d die %d", operationGetDieStatus, gpuId, dieId)
 	} else {
-		metrics = append(metrics,
+		metrics = append(
+			metrics,
 			metric.NewGaugeData("status", float64(dieStatus), "GPU status, 0 means normal, other values means abnormal. Check the documentation to see the exceptions corresponding to each value.", map[string]string{
 				"gpu": strconv.Itoa(int(gpuId)),
 				"die": strconv.Itoa(int(dieId)),
@@ -377,7 +388,8 @@ func metaxCollectDieMetrics(ctx context.Context, gpuId, dieId uint32, series gpu
 		}
 		log.Debugf("operation %s not supported on gpu %d die %d", operationGetTemperature, gpuId, dieId)
 	} else {
-		metrics = append(metrics,
+		metrics = append(
+			metrics,
 			metric.NewGaugeData("temperature_celsius", value, "GPU temperature.", map[string]string{
 				"gpu": strconv.Itoa(int(gpuId)),
 				"die": strconv.Itoa(int(dieId)),
@@ -395,7 +407,8 @@ func metaxCollectDieMetrics(ctx context.Context, gpuId, dieId uint32, series gpu
 			}
 			log.Debugf("operation %s not supported on gpu %d die %d", operationGetUtilization, gpuId, dieId)
 		} else {
-			metrics = append(metrics,
+			metrics = append(
+				metrics,
 				metric.NewGaugeData("utilization_percent", float64(value), "GPU utilization, ranging from 0 to 100.", map[string]string{
 					"gpu": strconv.Itoa(int(gpuId)),
 					"die": strconv.Itoa(int(dieId)),
@@ -414,7 +427,8 @@ func metaxCollectDieMetrics(ctx context.Context, gpuId, dieId uint32, series gpu
 		}
 		log.Debugf("operation %s not supported on gpu %d die %d", operationGetMemoryInfo, gpuId, dieId)
 	} else {
-		metrics = append(metrics,
+		metrics = append(
+			metrics,
 			metric.NewGaugeData("memory_total_bytes", float64(memoryInfo.Total)*1024, "Total vram.", map[string]string{
 				"gpu": strconv.Itoa(int(gpuId)),
 				"die": strconv.Itoa(int(dieId)),
@@ -441,7 +455,8 @@ func metaxCollectDieMetrics(ctx context.Context, gpuId, dieId uint32, series gpu
 			}
 			log.Debugf("operation %s not supported on gpu %d die %d", operationListClocks, gpuId, dieId)
 		} else {
-			metrics = append(metrics,
+			metrics = append(
+				metrics,
 				metric.NewGaugeData("clock_mhz", float64(values[0]), "GPU clock.", map[string]string{
 					"gpu": strconv.Itoa(int(gpuId)),
 					"die": strconv.Itoa(int(dieId)),
@@ -475,7 +490,8 @@ func metaxCollectDieMetrics(ctx context.Context, gpuId, dieId uint32, series gpu
 				continue
 			}
 
-			metrics = append(metrics,
+			metrics = append(
+				metrics,
 				metric.NewGaugeData("clocks_throttling", float64(v), "Reason(s) for GPU clocks throttling.", map[string]string{
 					"gpu":    strconv.Itoa(int(gpuId)),
 					"die":    strconv.Itoa(int(dieId)),
@@ -495,7 +511,8 @@ func metaxCollectDieMetrics(ctx context.Context, gpuId, dieId uint32, series gpu
 			}
 			log.Debugf("operation %s not supported on gpu %d die %d", operationGetDpmPerformanceLevel, gpuId, dieId)
 		} else {
-			metrics = append(metrics,
+			metrics = append(
+				metrics,
 				metric.NewGaugeData("dpm_performance_level", float64(value), "GPU DPM performance level.", map[string]string{
 					"gpu": strconv.Itoa(int(gpuId)),
 					"die": strconv.Itoa(int(dieId)),
@@ -514,7 +531,8 @@ func metaxCollectDieMetrics(ctx context.Context, gpuId, dieId uint32, series gpu
 		}
 		log.Debugf("operation %s not supported on gpu %d die %d", operationGetEccMemoryInfo, gpuId, dieId)
 	} else {
-		metrics = append(metrics,
+		metrics = append(
+			metrics,
 			metric.NewCounterData("ecc_memory_errors_total", float64(eccMemoryInfo.SramCorrectableErrorsCount), "GPU ECC memory errors count.", map[string]string{
 				"gpu":         strconv.Itoa(int(gpuId)),
 				"die":         strconv.Itoa(int(dieId)),

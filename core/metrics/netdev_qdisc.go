@@ -113,7 +113,8 @@ func (c *qdiscCollector) Update() ([]*metric.Data, error) {
 	for _, netdevQdisc := range allQdiscMap {
 		for _, oneQdisc := range netdevQdisc {
 			tags := map[string]string{"device": oneQdisc.ifaceName, "kind": oneQdisc.kind}
-			metrics = append(metrics,
+			metrics = append(
+				metrics,
 				metric.NewCounterData("bytes_total", float64(oneQdisc.bytes), "number of bytes sent.", tags),
 				metric.NewCounterData("packets_total", float64(oneQdisc.packets), "number of packets sent.", tags),
 				metric.NewCounterData("drops_total", float64(oneQdisc.drops), "number of packet drops.", tags),

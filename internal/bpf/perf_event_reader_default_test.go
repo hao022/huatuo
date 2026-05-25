@@ -239,13 +239,15 @@ func outputSamplesProg(tb testing.TB, events *ebpf.Map, sampleSizes ...byte) *eb
 
 	bufDwords := int(maxSampleSize/8) + 1
 	for i := 0; i < bufDwords; i++ {
-		insns = append(insns,
+		insns = append(
+			insns,
 			asm.StoreMem(asm.RFP, int16(i+1)*-8, asm.R0, asm.DWord),
 		)
 	}
 
 	for i, sampleSize := range sampleSizes {
-		insns = append(insns,
+		insns = append(
+			insns,
 			asm.Mov.Reg(asm.R1, asm.R9),
 			asm.LoadMapPtr(asm.R2, events.FD()),
 			asm.LoadImm(asm.R3, bpfFCurrentCPU, asm.DWord),
