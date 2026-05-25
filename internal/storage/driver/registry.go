@@ -19,7 +19,7 @@ import (
 	"sync"
 )
 
-// BackendFactory creates a Backend from a Config.
+// BackendFactory creates a backend from Config.
 type BackendFactory func(*Config) (Backend, error)
 
 var (
@@ -27,14 +27,14 @@ var (
 	backendFactories   = make(map[string]BackendFactory)
 )
 
-// RegisterBackend associates name with factory. Backends call this from init().
+// RegisterBackend registers a backend factory by driver name.
 func RegisterBackend(name string, factory BackendFactory) {
 	backendFactoriesMu.Lock()
 	defer backendFactoriesMu.Unlock()
 	backendFactories[name] = factory
 }
 
-// NewBackend looks up the factory for cfg.Driver and invokes it.
+// NewBackend creates a backend from Config.
 func NewBackend(cfg *Config) (Backend, error) {
 	if cfg.Driver == "" {
 		return nil, fmt.Errorf("storage: backend driver is empty")

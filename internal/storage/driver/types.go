@@ -32,13 +32,17 @@ var (
 	ErrEncodeFailed  = errors.New("storage: encode failed")
 	ErrDecodeFailed  = errors.New("storage: decode failed")
 
+	// ErrNegativePagination is returned when Limit or Offset is negative.
 	ErrNegativePagination = fmt.Errorf("%w: limit and offset must be non-negative", ErrInvalidQuery)
-	ErrNegativeSize       = fmt.Errorf("%w: size must be non-negative", ErrInvalidQuery)
-	ErrInRequiresSlice    = fmt.Errorf("%w: in operator requires a slice or array value", ErrInvalidQuery)
+	// ErrNegativeSize is returned when a Terms size is negative.
+	ErrNegativeSize = fmt.Errorf("%w: size must be non-negative", ErrInvalidQuery)
+	// ErrInRequiresSlice is returned when an OpIn filter value is not a slice or array.
+	ErrInRequiresSlice = fmt.Errorf("%w: in operator requires a slice or array value", ErrInvalidQuery)
+	// ErrInRequiresNonEmpty is returned when an OpIn filter value is an empty slice.
 	ErrInRequiresNonEmpty = fmt.Errorf("%w: in operator requires at least one value", ErrInvalidQuery)
 )
 
-// Config holds driver-specific configuration for creating a backend.
+// Config contains backend selection and backend-specific settings.
 type Config struct {
 	Driver string
 
@@ -54,33 +58,40 @@ type Config struct {
 	ESIndex     string
 }
 
-// Op is a filter comparison operator.
+// Op is a storage query operator.
 type Op string
 
 const (
-	OpEq  Op = "eq"
-	OpNe  Op = "ne"
-	OpGt  Op = "gt"
+	// OpEq matches values equal to the filter value.
+	OpEq Op = "eq"
+	// OpNe matches values not equal to the filter value.
+	OpNe Op = "ne"
+	// OpGt matches values greater than the filter value.
+	OpGt Op = "gt"
+	// OpGte matches values greater than or equal to the filter value.
 	OpGte Op = "gte"
-	OpLt  Op = "lt"
+	// OpLt matches values less than the filter value.
+	OpLt Op = "lt"
+	// OpLte matches values less than or equal to the filter value.
 	OpLte Op = "lte"
-	OpIn  Op = "in"
+	// OpIn matches values contained in the filter value.
+	OpIn Op = "in"
 )
 
-// Filter restricts query results to records where Field Op Value holds.
+// Filter describes one field predicate in a query.
 type Filter struct {
 	Field string
 	Op    Op
 	Value any
 }
 
-// Sort orders results by Field.
+// Sort describes one field sort in a query.
 type Sort struct {
 	Field string
 	Desc  bool
 }
 
-// Query holds query parameters for listing records.
+// Query describes filters, ordering, and pagination.
 type Query struct {
 	Filters []Filter
 	Sorts   []Sort
@@ -88,19 +99,19 @@ type Query struct {
 	Offset  int
 }
 
-// Record is the backend-neutral wire type for a single stored document.
+// Record is the backend-neutral persisted representation.
 type Record struct {
 	ID     string
 	Data   []byte
 	Fields map[string]any
 }
 
-// Index declares a field that the backend should index for efficient filtering.
+// Index declares one queryable field.
 type Index struct {
 	Field string
 }
 
-// Mapper maps domain objects of type T to backend Records and back.
+// Mapper converts domain values of type T to and from the storage representation.
 type Mapper[T any] interface {
 	Collection() string
 	ID(entity T) string
@@ -110,7 +121,8 @@ type Mapper[T any] interface {
 	Indexes() []Index
 }
 
-// Backend is the interface that all storage drivers must implement.
+// Backend is implemented by storage backends. A backend instance is bound to
+// one collection by Init; subsequent calls operate on that collection.
 type Backend interface {
 	Init(ctx context.Context, collection string, indexes []Index) error
 	Save(ctx context.Context, rec Record) error

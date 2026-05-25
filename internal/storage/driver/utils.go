@@ -21,7 +21,7 @@ import (
 	"time"
 )
 
-// WithContext returns ctx if non-nil, otherwise context.Background().
+// WithContext returns a non-nil context, falling back to context.Background().
 func WithContext(ctx context.Context) context.Context {
 	if ctx == nil {
 		return context.Background()
@@ -29,7 +29,8 @@ func WithContext(ctx context.Context) context.Context {
 	return ctx
 }
 
-// NormalizeValue canonicalizes time.Time to a fixed UTC string; other types pass through.
+// NormalizeValue converts time.Time to its canonical storage string; all other
+// types pass through unchanged.
 func NormalizeValue(value any) any {
 	if t, ok := value.(time.Time); ok {
 		return t.UTC().Format("2006-01-02 15:04:05.000 -0700")
@@ -37,7 +38,9 @@ func NormalizeValue(value any) any {
 	return value
 }
 
-// FlattenInValues reflects over a slice/array and normalizes each element.
+// FlattenInValues expands a slice or array into []any, normalizing each element.
+// Returns ErrInRequiresSlice for non-slice values and ErrInRequiresNonEmpty for
+// empty slices.
 func FlattenInValues(value any) ([]any, error) {
 	rv := reflect.ValueOf(value)
 	if !rv.IsValid() || (rv.Kind() != reflect.Slice && rv.Kind() != reflect.Array) {
@@ -47,13 +50,13 @@ func FlattenInValues(value any) ([]any, error) {
 		return nil, ErrInRequiresNonEmpty
 	}
 	values := make([]any, 0, rv.Len())
-	for i := range rv.Len() {
+	for i := 0; i < rv.Len(); i++ {
 		values = append(values, NormalizeValue(rv.Index(i).Interface()))
 	}
 	return values, nil
 }
 
-// CloneBytes returns a defensive copy of data.
+// CloneBytes returns a copy of data, or nil for empty input.
 func CloneBytes(data []byte) []byte {
 	if len(data) == 0 {
 		return nil
