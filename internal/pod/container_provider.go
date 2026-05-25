@@ -55,7 +55,7 @@ func containerProviderFrom(s string) (containerProvider, error) {
 	}
 }
 
-// initContainerProviderEnv initialises the runtime environment on first call.
+// initContainerProviderEnv initializes the runtime environment on first call.
 // On failure the provider remains unset so a subsequent call with a valid prefix can succeed.
 // After successful init, mismatched prefixes are rejected to tolerate stale PodStatus entries.
 func initContainerProviderEnv(provider containerProvider, apiVersion string) error {
