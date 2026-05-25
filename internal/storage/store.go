@@ -21,22 +21,25 @@ import (
 	"huatuo-bamai/internal/storage/driver"
 )
 
-// Store is a generic, backend-agnostic CRUD wrapper over a driver.Backend.
+// Store is a generic, backend-agnostic CRUD abstraction; a Mapper[T] handles
+// encoding, decoding, and index declarations for the domain type T.
 type Store[T any] struct {
 	backend driver.Backend
 	mapper  driver.Mapper[T]
 }
 
-// NewFromConfig creates a Store by looking up cfg.Driver in the backend registry.
+// NewFromConfig creates a Store from Config and Mapper.
 func NewFromConfig[T any](ctx context.Context, cfg *driver.Config, mapper driver.Mapper[T]) (*Store[T], error) {
 	backend, err := driver.NewBackend(cfg)
 	if err != nil {
 		return nil, err
 	}
+
 	return NewStore(ctx, backend, mapper)
 }
 
-// NewStore creates a Store from an already-constructed backend and mapper.
+// NewStore validates that backend and mapper are non-nil, verifies the collection
+// name, and calls backend.Init to create tables and indexes.
 func NewStore[T any](ctx context.Context, backend driver.Backend, mapper driver.Mapper[T]) (*Store[T], error) {
 	if ctx == nil {
 		ctx = context.Background()
@@ -63,27 +66,37 @@ func NewStore[T any](ctx context.Context, backend driver.Backend, mapper driver.
 		return nil, err
 	}
 
-	return &Store[T]{backend: backend, mapper: mapper}, nil
+	return &Store[T]{
+		backend: backend,
+		mapper:  mapper,
+	}, nil
 }
 
-// Save encodes v and persists it through the backend.
+// Save persists v; returns ErrInvalidField if the ID is empty.
 func (s *Store[T]) Save(ctx context.Context, v T) error {
 	fields, err := s.mapper.Fields(v)
 	if err != nil {
 		return err
 	}
+
 	data, err := s.mapper.Encode(v)
 	if err != nil {
 		return fmt.Errorf("%w: %w", driver.ErrEncodeFailed, err)
 	}
-	rec := driver.Record{ID: s.mapper.ID(v), Data: data, Fields: fields}
+
+	rec := driver.Record{
+		ID:     s.mapper.ID(v),
+		Data:   data,
+		Fields: fields,
+	}
 	if rec.ID == "" {
 		return fmt.Errorf("%w: empty id", driver.ErrInvalidField)
 	}
+
 	return s.backend.Save(driver.WithContext(ctx), rec)
 }
 
-// Get retrieves the record with the given id and decodes it.
+// Get retrieves the object with the given id; returns ErrNotFound when not found.
 func (s *Store[T]) Get(ctx context.Context, id string) (T, error) {
 	rec, err := s.backend.Get(driver.WithContext(ctx), id)
 	if err != nil {
@@ -93,20 +106,22 @@ func (s *Store[T]) Get(ctx context.Context, id string) (T, error) {
 	return s.mapper.Decode(rec.Data)
 }
 
-// Delete removes the record with the given id.
+// Delete removes an object from storage by ID.
 func (s *Store[T]) Delete(ctx context.Context, id string) error {
 	return s.backend.Delete(driver.WithContext(ctx), id)
 }
 
-// Query returns all records matching q, decoded into T.
+// Query returns objects matching q; all filter and sort fields must be registered indexes.
 func (s *Store[T]) Query(ctx context.Context, q driver.Query) ([]T, error) {
 	if err := s.validateQuery(q); err != nil {
 		return nil, err
 	}
+
 	records, err := s.backend.Query(driver.WithContext(ctx), q)
 	if err != nil {
 		return nil, err
 	}
+
 	values := make([]T, 0, len(records))
 	for _, rec := range records {
 		value, decodeErr := s.mapper.Decode(rec.Data)
@@ -115,18 +130,20 @@ func (s *Store[T]) Query(ctx context.Context, q driver.Query) ([]T, error) {
 		}
 		values = append(values, value)
 	}
+
 	return values, nil
 }
 
-// Count returns the number of records matching q.
+// Count returns the number of objects matching the given query.
 func (s *Store[T]) Count(ctx context.Context, q driver.Query) (int64, error) {
 	if err := s.validateQuery(q); err != nil {
 		return 0, err
 	}
+
 	return s.backend.Count(driver.WithContext(ctx), q)
 }
 
-// Values returns distinct values of field across records matching q.
+// Values returns up to size distinct values for field, filtered by q.
 func (s *Store[T]) Values(ctx context.Context, field string, q driver.Query, size int) ([]string, error) {
 	if size < 0 {
 		return nil, driver.ErrNegativeSize
@@ -134,12 +151,15 @@ func (s *Store[T]) Values(ctx context.Context, field string, q driver.Query, siz
 	if err := s.validateQuery(q); err != nil {
 		return nil, err
 	}
+
 	return s.backend.Values(driver.WithContext(ctx), field, q, size)
 }
 
+// validateQuery checks that limit and offset are non-negative.
 func (s *Store[T]) validateQuery(q driver.Query) error {
 	if q.Limit < 0 || q.Offset < 0 {
 		return driver.ErrNegativePagination
 	}
+
 	return nil
 }
