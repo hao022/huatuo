@@ -27,7 +27,7 @@ type Document struct {
 	ContainerHostname      string `json:"container_hostname,omitempty"`
 	ContainerHostNamespace string `json:"container_host_namespace,omitempty"`
 	ContainerType          string `json:"container_type,omitempty"`
-	ContainerQos           string `json:"container_qos,omitempty"`
+	ContainerQoS           string `json:"container_qos,omitempty"`
 
 	TracerName    string `json:"tracer_name,omitempty"`
 	TracerID      string `json:"tracer_id,omitempty"`

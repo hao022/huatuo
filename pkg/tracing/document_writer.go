@@ -126,7 +126,7 @@ func newBaseDocument(options DocumentOptions, req *WriteRequest) (*Document, err
 	document.ContainerHostname = container.Hostname
 	document.ContainerHostNamespace = container.LabelHostNamespace()
 	document.ContainerType = container.Type.String()
-	document.ContainerQos = container.Qos.String()
+	document.ContainerQoS = container.Qos.String()
 	return &document, nil
 }
 

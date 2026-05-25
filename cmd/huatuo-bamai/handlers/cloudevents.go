@@ -41,7 +41,7 @@ func DocumentToWatchEvent(doc *tracing.Document) pkgtypes.WatchEvent {
 			ContainerHostname:      doc.ContainerHostname,
 			ContainerHostNamespace: doc.ContainerHostNamespace,
 			ContainerType:          doc.ContainerType,
-			ContainerQos:           doc.ContainerQos,
+			ContainerQos:           doc.ContainerQoS,
 			TracerName:             doc.TracerName,
 			TracerID:               doc.TracerID,
 			TracerRunType:          doc.TracerRunType,

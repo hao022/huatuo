@@ -111,7 +111,7 @@ func (wf *WatchFilters) matcher() (*matcher.FieldMatcher[*tracing.Document], err
 		{
 			Name:    "container_qos",
 			Pattern: wf.ContainerQos,
-			Extract: func(d *tracing.Document) string { return d.ContainerQos },
+			Extract: func(d *tracing.Document) string { return d.ContainerQoS },
 		},
 		{
 			Name:    "region",

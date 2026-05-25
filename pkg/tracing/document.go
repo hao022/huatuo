@@ -72,7 +72,7 @@ func (DocumentStoreMapper) Fields(document *Document) (map[string]any, error) {
 		"container_hostname":       document.ContainerHostname,
 		"container_host_namespace": document.ContainerHostNamespace,
 		"container_type":           document.ContainerType,
-		"container_qos":            document.ContainerQos,
+		"container_qos":            document.ContainerQoS,
 		"tracer_name":              document.TracerName,
 		"tracer_id":                document.TracerID,
 		"tracer_time":              tracingDocumentTimeValue(document.TracerTime, document.UploadedTime),
