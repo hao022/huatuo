@@ -16,10 +16,12 @@ package executil
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
+	"syscall"
 	"testing"
 
 	"huatuo-bamai/internal/procfs"
@@ -131,6 +133,11 @@ func TestHostnameByPid(t *testing.T) {
 	}
 
 	selfPid := uint32(os.Getpid())
+
+	// setns(2) requires CAP_SYS_ADMIN; skip the whole test in unprivileged environments.
+	if _, err := HostnameByPid(selfPid); errors.Is(err, syscall.EPERM) {
+		t.Skip("setns requires CAP_SYS_ADMIN; skipping in unprivileged environment")
+	}
 
 	tests := []struct {
 		name     string
