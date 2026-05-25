@@ -24,7 +24,6 @@ import (
 
 	"huatuo-bamai/internal/bpf"
 	"huatuo-bamai/internal/log"
-	"huatuo-bamai/internal/storage"
 	"huatuo-bamai/pkg/metric"
 	"huatuo-bamai/pkg/tracing"
 
@@ -96,7 +95,13 @@ func (lacp *lacpTracing) Start(ctx context.Context) (err error) {
 			}
 
 			log.Debugf("bond info: %s", tracerData.Content)
-			storage.Save("lacp", "", time.Now(), tracerData)
+			if err := tracing.Save(&tracing.WriteRequest{
+				TracerName: "lacp",
+				TracerTime: time.Now(),
+				TracerData: tracerData,
+			}); err != nil {
+				log.Warnf("failed to save tracing data: %v", err)
+			}
 		}
 	}
 }

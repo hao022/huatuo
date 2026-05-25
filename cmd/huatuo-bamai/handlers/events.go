@@ -21,11 +21,11 @@ import (
 	"sync/atomic"
 	"time"
 
+	"huatuo-bamai/internal/log"
 	"huatuo-bamai/internal/matcher"
 	"huatuo-bamai/internal/server"
 	"huatuo-bamai/internal/server/response"
-	"huatuo-bamai/internal/storage"
-	"huatuo-bamai/internal/storage/types"
+	"huatuo-bamai/pkg/tracing"
 )
 
 const (
@@ -81,36 +81,42 @@ type WatchFilters struct {
 	Hostname               string `json:"hostname,omitempty"`
 	ContainerHostname      string `json:"container_hostname,omitempty"`
 	ContainerHostNamespace string `json:"container_host_namespace,omitempty"`
+	ContainerQos           string `json:"container_qos,omitempty"`
 	Region                 string `json:"region,omitempty"`
 }
 
-// matcher builds a matcher.FieldMatcher[*types.Document] from the filter's regex patterns.
-func (wf *WatchFilters) matcher() (*matcher.FieldMatcher[*types.Document], error) {
-	return matcher.NewFieldMatcher([]matcher.FieldSpec[*types.Document]{
+// matcher builds a matcher.FieldMatcher[*tracing.Document] from the filter's regex patterns.
+func (wf *WatchFilters) matcher() (*matcher.FieldMatcher[*tracing.Document], error) {
+	return matcher.NewFieldMatcher([]matcher.FieldSpec[*tracing.Document]{
 		{
 			Name:    "tracer_name",
 			Pattern: wf.TracerName,
-			Extract: func(d *types.Document) string { return d.TracerName },
+			Extract: func(d *tracing.Document) string { return d.TracerName },
 		},
 		{
 			Name:    "hostname",
 			Pattern: wf.Hostname,
-			Extract: func(d *types.Document) string { return d.Hostname },
+			Extract: func(d *tracing.Document) string { return d.Hostname },
 		},
 		{
 			Name:    "container_hostname",
 			Pattern: wf.ContainerHostname,
-			Extract: func(d *types.Document) string { return d.ContainerHostname },
+			Extract: func(d *tracing.Document) string { return d.ContainerHostname },
 		},
 		{
 			Name:    "container_host_namespace",
 			Pattern: wf.ContainerHostNamespace,
-			Extract: func(d *types.Document) string { return d.ContainerHostNamespace },
+			Extract: func(d *tracing.Document) string { return d.ContainerHostNamespace },
+		},
+		{
+			Name:    "container_qos",
+			Pattern: wf.ContainerQos,
+			Extract: func(d *tracing.Document) string { return d.ContainerQos },
 		},
 		{
 			Name:    "region",
 			Pattern: wf.Region,
-			Extract: func(d *types.Document) string { return d.Region },
+			Extract: func(d *tracing.Document) string { return d.Region },
 		},
 	})
 }
@@ -121,6 +127,7 @@ func (wf *WatchFilters) matcher() (*matcher.FieldMatcher[*types.Document], error
 // maxKeepAliveFailures consecutive times.
 func (h *EventsHandler) watch(ctx *server.Context) error {
 	if int(h.activeClients.Load()) >= h.maxClients {
+		log.Infof("[eventwatch] rejected: max clients reached (%d/%d)", h.activeClients.Load(), h.maxClients)
 		return response.ErrTooManyRequests.WithMessage("max watch clients reached")
 	}
 	h.activeClients.Add(1)
@@ -137,6 +144,8 @@ func (h *EventsHandler) watch(ctx *server.Context) error {
 		return response.ErrInvalidRequest.WithMessage(err.Error())
 	}
 
+	log.Infof("[eventwatch] connected: filters=%+v", req.Filters)
+
 	flusher, ok := ctx.Writer().(http.Flusher)
 	if !ok {
 		return response.ErrInternal.WithMessage("response writer does not support streaming")
@@ -147,7 +156,7 @@ func (h *EventsHandler) watch(ctx *server.Context) error {
 	ctx.Header("Connection", "keep-alive")
 	ctx.Header("X-Accel-Buffering", "no")
 
-	docCh, cancel := storage.Subscribe()
+	docCh, cancel := tracing.Subscribe()
 	defer cancel()
 
 	ticker := time.NewTicker(h.keepAliveInterval)
@@ -173,6 +182,7 @@ func (h *EventsHandler) watch(ctx *server.Context) error {
 			if _, err := fmt.Fprint(ctx.Writer(), ": ping\n"); err != nil {
 				pingFailures++
 				if pingFailures >= maxKeepAliveFailures {
+					log.Infof("[eventwatch] disconnected: keepalive failed (failures=%d, threshold=%d)", pingFailures, maxKeepAliveFailures)
 					return nil
 				}
 			} else {
@@ -195,6 +205,7 @@ func (h *EventsHandler) watch(ctx *server.Context) error {
 			if _, err := fmt.Fprintf(ctx.Writer(), "data: %s\n\n", data); err != nil {
 				pingFailures++
 				if pingFailures >= maxKeepAliveFailures {
+					log.Infof("[eventwatch] disconnected: write failed (failures=%d, threshold=%d)", pingFailures, maxKeepAliveFailures)
 					return nil
 				}
 			} else {

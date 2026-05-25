@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"huatuo-bamai/internal/bpf"
-	"huatuo-bamai/internal/storage"
+	"huatuo-bamai/internal/log"
 	"huatuo-bamai/internal/symbol"
 	"huatuo-bamai/internal/utils/bytesutil"
 	"huatuo-bamai/pkg/tracing"
@@ -121,15 +121,21 @@ func (c *softirqTracing) Start(ctx context.Context) error {
 				stack = softirqDumpTrace(data.Stack[:])
 			}
 
-			storage.Save("softirq_tracing", "", time.Now(), &SoftirqTracingData{
-				OffTime:   data.StallTime,
-				Threshold: softirqThresh,
-				Comm:      comm,
-				Pid:       data.Pid,
-				CPU:       data.CPU,
-				Now:       data.Now,
-				Stack:     fmt.Sprintf("stack:\n%s", stack),
-			})
+			if err := tracing.Save(&tracing.WriteRequest{
+				TracerName: "softirq_tracing",
+				TracerTime: time.Now(),
+				TracerData: &SoftirqTracingData{
+					OffTime:   data.StallTime,
+					Threshold: softirqThresh,
+					Comm:      comm,
+					Pid:       data.Pid,
+					CPU:       data.CPU,
+					Now:       data.Now,
+					Stack:     fmt.Sprintf("stack:\n%s", stack),
+				},
+			}); err != nil {
+				log.Warnf("failed to save tracing data: %v", err)
+			}
 		}
 	} // forever
 }

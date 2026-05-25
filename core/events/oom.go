@@ -21,8 +21,8 @@ import (
 	"time"
 
 	"huatuo-bamai/internal/bpf"
+	"huatuo-bamai/internal/log"
 	"huatuo-bamai/internal/pod"
-	"huatuo-bamai/internal/storage"
 	"huatuo-bamai/internal/utils/bytesutil"
 	"huatuo-bamai/pkg/metric"
 	"huatuo-bamai/pkg/tracing"
@@ -90,7 +90,8 @@ func (c *oomCollector) Update() ([]*metric.Data, error) {
 	metrics = append(metrics, metric.NewCounterData("host_total", outOfMemoryCounterHost, "host oom counter", nil))
 	for _, container := range containers {
 		if val, exists := outOfMemoryCounterContainer[container.ID]; exists {
-			metrics = append(metrics,
+			metrics = append(
+				metrics,
 				metric.NewContainerCounterData(container, "total", float64(val.count), "containers oom counter", map[string]string{"process": val.victimProcessName}),
 			)
 		}
@@ -163,7 +164,13 @@ func (c *oomCollector) Start(ctx context.Context) error {
 
 			mutex.Unlock()
 
-			storage.Save("oom", "", time.Now(), oomData)
+			if err := tracing.Save(&tracing.WriteRequest{
+				TracerName: "oom",
+				TracerTime: time.Now(),
+				TracerData: oomData,
+			}); err != nil {
+				log.Warnf("failed to save tracing data: %v", err)
+			}
 		}
 	}
 }

@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"huatuo-bamai/internal/bpf"
-	"huatuo-bamai/internal/storage"
+	"huatuo-bamai/internal/log"
 	"huatuo-bamai/internal/utils/bytesutil"
 	"huatuo-bamai/internal/utils/kmsgutil"
 	"huatuo-bamai/pkg/metric"
@@ -132,12 +132,18 @@ func (c *hungTaskTracing) Start(ctx context.Context) error {
 				blockedProcessesBT = err.Error()
 			}
 
-			storage.Save("hungtask", "", time.Now(), &HungTaskTracerData{
-				Pid:                   data.Pid,
-				Comm:                  bytesutil.ToStr(data.Comm[:]),
-				CPUsStack:             cpusBT,
-				BlockedProcessesStack: blockedProcessesBT,
-			})
+			if err := tracing.Save(&tracing.WriteRequest{
+				TracerName: "hungtask",
+				TracerTime: time.Now(),
+				TracerData: &HungTaskTracerData{
+					Pid:                   data.Pid,
+					Comm:                  bytesutil.ToStr(data.Comm[:]),
+					CPUsStack:             cpusBT,
+					BlockedProcessesStack: blockedProcessesBT,
+				},
+			}); err != nil {
+				log.Warnf("failed to save tracing data: %v", err)
+			}
 		}
 	}
 }

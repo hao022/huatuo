@@ -26,7 +26,6 @@ import (
 	"huatuo-bamai/internal/log"
 	"huatuo-bamai/internal/matcher"
 	"huatuo-bamai/internal/pod"
-	"huatuo-bamai/internal/storage"
 	"huatuo-bamai/internal/utils/bytesutil"
 	"huatuo-bamai/internal/utils/netutil"
 	"huatuo-bamai/pkg/tracing"
@@ -235,8 +234,14 @@ func (c *netRecvLatTracing) Start(ctx context.Context) error {
 			}
 			log.Debugf("net_rx_latency tracerData: %+v", tracerData)
 
-			// save storage
-			storage.Save("net_rx_latency", containerID, tracerTime, tracerData)
+			if err := tracing.Save(&tracing.WriteRequest{
+				TracerName:  "net_rx_latency",
+				ContainerID: containerID,
+				TracerTime:  tracerTime,
+				TracerData:  tracerData,
+			}); err != nil {
+				log.Warnf("failed to save tracing data: %v", err)
+			}
 		}
 	}
 }

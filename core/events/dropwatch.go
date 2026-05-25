@@ -24,7 +24,6 @@ import (
 	"huatuo-bamai/internal/bpf"
 	"huatuo-bamai/internal/linkstatus"
 	"huatuo-bamai/internal/log"
-	"huatuo-bamai/internal/storage"
 	"huatuo-bamai/internal/symbol"
 	"huatuo-bamai/internal/utils/bytesutil"
 	"huatuo-bamai/internal/utils/netutil"
@@ -168,7 +167,13 @@ func (c *dropWatchTracing) Start(ctx context.Context) error {
 				continue
 			}
 
-			storage.Save(tracerName, "", time.Now(), tracerData)
+			if err := tracing.Save(&tracing.WriteRequest{
+				TracerName: tracerName,
+				TracerTime: time.Now(),
+				TracerData: tracerData,
+			}); err != nil {
+				log.Warnf("failed to save tracing data: %v", err)
+			}
 		}
 	}
 }

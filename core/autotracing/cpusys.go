@@ -27,7 +27,6 @@ import (
 
 	"huatuo-bamai/internal/flamegraph"
 	"huatuo-bamai/internal/log"
-	"huatuo-bamai/internal/storage"
 	"huatuo-bamai/pkg/tracing"
 	"huatuo-bamai/pkg/types"
 )
@@ -150,7 +149,13 @@ func (c *cpuSysTracing) buildAndSaveCPUSystem(traceTime time.Time, threshold *cp
 	}
 
 	log.Debugf("cpuidle flamedata %v", tracerData.FlameData)
-	storage.Save("cpusys", "", traceTime, &tracerData)
+	if err := tracing.Save(&tracing.WriteRequest{
+		TracerName: "cpusys",
+		TracerTime: traceTime,
+		TracerData: &tracerData,
+	}); err != nil {
+		log.Warnf("failed to save tracing data: %v", err)
+	}
 	return nil
 }
 

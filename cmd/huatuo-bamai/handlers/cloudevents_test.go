@@ -19,14 +19,14 @@ import (
 	"testing"
 	"time"
 
-	storagetypes "huatuo-bamai/internal/storage/types"
+	"huatuo-bamai/pkg/tracing"
 	pkgtypes "huatuo-bamai/pkg/types"
 
 	"github.com/stretchr/testify/require"
 )
 
-func newTestDocument() *storagetypes.Document {
-	return &storagetypes.Document{
+func newTestDocument() *tracing.Document {
+	return &tracing.Document{
 		Hostname:      "node-1",
 		Region:        "cn",
 		UploadedTime:  time.Unix(1_700_000_000, 0).UTC(),

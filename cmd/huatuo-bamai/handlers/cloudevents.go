@@ -20,12 +20,12 @@ import (
 
 	"github.com/google/uuid"
 
-	storagetypes "huatuo-bamai/internal/storage/types"
+	"huatuo-bamai/pkg/tracing"
 	pkgtypes "huatuo-bamai/pkg/types"
 )
 
-// DocumentToWatchEvent converts a storage Document into a CloudEvents 1.0 WatchEvent.
-func DocumentToWatchEvent(doc *storagetypes.Document) pkgtypes.WatchEvent {
+// DocumentToWatchEvent converts a tracing Document into a CloudEvents 1.0 WatchEvent.
+func DocumentToWatchEvent(doc *tracing.Document) pkgtypes.WatchEvent {
 	return pkgtypes.WatchEvent{
 		SpecVersion:     "1.0",
 		ID:              uuid.New().String(),

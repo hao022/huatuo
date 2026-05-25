@@ -31,7 +31,6 @@ import (
 	"huatuo-bamai/internal/log"
 	"huatuo-bamai/internal/matcher"
 	"huatuo-bamai/internal/pod"
-	"huatuo-bamai/internal/storage"
 	"huatuo-bamai/pkg/tracing"
 	"huatuo-bamai/pkg/types"
 )
@@ -187,7 +186,8 @@ func updateContainerCpuUsage(container *containerCPUInfo) error {
 			user:  int64(usage.User),
 			sys:   int64(usage.System),
 			total: int64(usage.Usage),
-		}, &container.prevUsage)
+		}, &container.prevUsage,
+	)
 	if delta.total == 0 {
 		container.updateTime = time.Now()
 		return fmt.Errorf("cpu usage no changed")
@@ -205,7 +205,8 @@ func updateContainerCpuUsage(container *containerCPUInfo) error {
 
 	container.deltaUsagePercentage = containerCpuUsageDelta(
 		&container.nowUsagePercentage,
-		&container.prevUsagePercentage)
+		&container.prevUsagePercentage,
+	)
 	container.prevUsagePercentage = container.nowUsagePercentage
 	container.prevUsage = containerCpuUsage(usage)
 	container.updateTime = time.Now()
@@ -265,7 +266,14 @@ func buildAndSaveCPUIdleContainer(container *containerCPUInfo, threshold *cpuIdl
 	}
 
 	log.Debugf("cpuidle flamedata %v", tracerData.FlameData)
-	storage.Save("cpuidle", container.id, container.traceTime, &tracerData)
+	if err := tracing.Save(&tracing.WriteRequest{
+		TracerName:  "cpuidle",
+		ContainerID: container.id,
+		TracerTime:  container.traceTime,
+		TracerData:  &tracerData,
+	}); err != nil {
+		log.Warnf("failed to save tracing data: %v", err)
+	}
 	return nil
 }
 

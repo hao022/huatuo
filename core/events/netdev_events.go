@@ -23,7 +23,6 @@ import (
 
 	"huatuo-bamai/internal/linkstatus"
 	"huatuo-bamai/internal/log"
-	"huatuo-bamai/internal/storage"
 	"huatuo-bamai/pkg/metric"
 	"huatuo-bamai/pkg/tracing"
 
@@ -129,7 +128,8 @@ func (netdev *netdevTracing) Update() ([]*metric.Data, error) {
 					"driver":           netdev.netdevInfoStore[ifname].driver,
 					"driver_version":   netdev.netdevInfoStore[ifname].driverVersion,
 					"firmware_version": netdev.netdevInfoStore[ifname].firmwareVersion,
-				}))
+				},
+			))
 		}
 	}
 
@@ -199,7 +199,13 @@ func (netdev *netdevTracing) updateAndSaveEvent(data *netdevEventData) {
 
 	if !data.AtStart && data.LinkStatus != "" {
 		log.Infof("%s %+v", data.LinkStatus, data)
-		storage.Save(netdev.name, "", time.Now(), data)
+		if err := tracing.Save(&tracing.WriteRequest{
+			TracerName: netdev.name,
+			TracerTime: time.Now(),
+			TracerData: data,
+		}); err != nil {
+			log.Warnf("failed to save tracing data: %v", err)
+		}
 	}
 }
 

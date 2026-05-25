@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"huatuo-bamai/internal/log"
-	"huatuo-bamai/internal/storage"
 	"huatuo-bamai/pkg/tracing"
 
 	"github.com/shirou/gopsutil/process"
@@ -238,7 +237,13 @@ func (c *memBurstTracing) Start(ctx context.Context) error {
 
 		lastReportTime = currentTime
 
-		storage.Save("memburst", "", time.Now(), &MemoryTracingData{TopMemoryUsage: topProcesses})
+		if err := tracing.Save(&tracing.WriteRequest{
+			TracerName: "memburst",
+			TracerTime: time.Now(),
+			TracerData: &MemoryTracingData{TopMemoryUsage: topProcesses},
+		}); err != nil {
+			log.Warnf("failed to save tracing data: %v", err)
+		}
 	}
 
 	return nil

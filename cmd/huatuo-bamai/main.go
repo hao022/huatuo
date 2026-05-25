@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/signal"
@@ -36,6 +37,7 @@ import (
 	"huatuo-bamai/internal/pod"
 	"huatuo-bamai/internal/procfs"
 	"huatuo-bamai/internal/storage"
+	"huatuo-bamai/internal/storage/driver"
 	"huatuo-bamai/internal/utils/executil"
 	"huatuo-bamai/pkg/tracing"
 
@@ -58,7 +60,8 @@ func mainAction(ctx *cli.Context) error {
 		return err
 	}
 
-	if err := cgr.NewRuntime(ctx.App.Name,
+	if err := cgr.NewRuntime(
+		ctx.App.Name,
 		cgroups.ToSpec(
 			config.Get().RuntimeCgroup.LimitInitCPU,
 			config.Get().RuntimeCgroup.LimitMem,
@@ -74,21 +77,10 @@ func mainAction(ctx *cli.Context) error {
 		return fmt.Errorf("cgroup add pid to cgroups.proc")
 	}
 
-	// initialize the storage clients.
-	storageInitCtx := storage.InitContext{
-		EsAddresses:       config.Get().Storage.ES.Address,
-		EsUsername:        config.Get().Storage.ES.Username,
-		EsPassword:        config.Get().Storage.ES.Password,
-		EsIndex:           config.Get().Storage.ES.Index,
-		LocalPath:         config.Get().Storage.LocalFile.Path,
-		LocalMaxRotation:  config.Get().Storage.LocalFile.MaxRotation,
-		LocalRotationSize: config.Get().Storage.LocalFile.RotationSize,
-		StorageDisabled:   ctx.Bool("disable-storage"),
-		Region:            config.Region,
-	}
-
-	if err := storage.InitDefaultClients(&storageInitCtx); err != nil {
-		return fmt.Errorf("storage.InitDefaultClients: %w", err)
+	if !ctx.Bool("disable-storage") {
+		if err := initStorage(config.Region, config.Get()); err != nil {
+			return err
+		}
 	}
 
 	if err := bpf.NewManager(&bpf.Option{}); err != nil {
@@ -191,6 +183,68 @@ func buildOptionDir(optionDir string, ctx *cli.Context) string {
 	}
 
 	return filepath.Join(runningDir, "../", dir)
+}
+
+func initStorage(storageRegion string, cfg *config.BamaiConfig) error {
+	var (
+		err     error
+		esStore *storage.Store[*tracing.Document]
+	)
+
+	tracingMetadataStores := make([]*storage.Store[*tracing.Document], 0, 2)
+	if cfg.Storage.ES.Address != "" &&
+		cfg.Storage.ES.Username != "" &&
+		cfg.Storage.ES.Password != "" {
+		esStore, err = storage.NewFromConfig[*tracing.Document](context.Background(), &driver.Config{
+			Driver:      "elasticsearch",
+			ESAddresses: splitStorageAddresses(cfg.Storage.ES.Address),
+			ESUsername:  cfg.Storage.ES.Username,
+			ESPassword:  cfg.Storage.ES.Password,
+			ESIndex:     cfg.Storage.ES.Index,
+		}, tracing.DocumentStoreMapper{})
+		if err != nil {
+			return fmt.Errorf("storage.NewStore(tracing documents): %w", err)
+		}
+		tracingMetadataStores = append(tracingMetadataStores, esStore)
+	}
+
+	if cfg.Storage.LocalFile.Path != "" {
+		localFileStore, err := storage.NewFromConfig[*tracing.Document](context.Background(), &driver.Config{
+			Driver:                "localfile",
+			LocalFilePath:         cfg.Storage.LocalFile.Path,
+			LocalFileMaxRotation:  cfg.Storage.LocalFile.MaxRotation,
+			LocalFileRotationSize: cfg.Storage.LocalFile.RotationSize,
+		}, tracing.DocumentStoreMapper{})
+		if err != nil {
+			return fmt.Errorf("storage.NewStore(tracing documents localfile): %w", err)
+		}
+		tracingMetadataStores = append(tracingMetadataStores, localFileStore)
+	}
+
+	if len(tracingMetadataStores) > 0 {
+		tracing.SetTracingStore(
+			tracingMetadataStores,
+			tracing.DocumentOptions{
+				Region: storageRegion,
+			},
+		)
+	}
+	tracing.SetTaskStore([]*storage.Store[*tracing.Document]{esStore}, tracing.DocumentOptions{Region: storageRegion})
+
+	return nil
+}
+
+func splitStorageAddresses(raw string) []string {
+	parts := strings.Split(raw, ",")
+	addresses := make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed == "" {
+			continue
+		}
+		addresses = append(addresses, trimmed)
+	}
+	return addresses
 }
 
 func main() {

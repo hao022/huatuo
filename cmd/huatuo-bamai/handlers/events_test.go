@@ -17,7 +17,7 @@ package handlers
 import (
 	"testing"
 
-	"huatuo-bamai/internal/storage/types"
+	"huatuo-bamai/pkg/tracing"
 
 	"github.com/stretchr/testify/require"
 )
@@ -31,7 +31,7 @@ func TestWatchFilters_Matcher_Empty(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, m)
 	// empty matcher matches everything
-	require.True(t, m.Match(&types.Document{TracerName: "any"}))
+	require.True(t, m.Match(&tracing.Document{TracerName: "any"}))
 }
 
 func TestWatchFilters_Matcher_ValidPattern(t *testing.T) {
@@ -39,8 +39,8 @@ func TestWatchFilters_Matcher_ValidPattern(t *testing.T) {
 	m, err := wf.matcher()
 
 	require.NoError(t, err)
-	require.True(t, m.Match(&types.Document{TracerName: "cpu"}))
-	require.False(t, m.Match(&types.Document{TracerName: "mem"}))
+	require.True(t, m.Match(&tracing.Document{TracerName: "cpu"}))
+	require.False(t, m.Match(&tracing.Document{TracerName: "mem"}))
 }
 
 func TestWatchFilters_Matcher_InvalidPattern(t *testing.T) {
@@ -63,7 +63,7 @@ func TestWatchFilters_Matcher_AllFields(t *testing.T) {
 
 	require.NoError(t, err)
 
-	match := &types.Document{
+	match := &tracing.Document{
 		TracerName:             "cpu",
 		Hostname:               "node-1",
 		ContainerHostname:      "app-123",
@@ -72,7 +72,7 @@ func TestWatchFilters_Matcher_AllFields(t *testing.T) {
 	}
 	require.True(t, m.Match(match))
 
-	noMatch := &types.Document{
+	noMatch := &tracing.Document{
 		TracerName:             "mem",
 		Hostname:               "node-1",
 		ContainerHostname:      "app-123",
@@ -86,22 +86,22 @@ func TestWatchFilters_Matcher_HostnameFilter(t *testing.T) {
 	wf := WatchFilters{Hostname: "^node-[0-9]+$"}
 	m, _ := wf.matcher()
 
-	require.True(t, m.Match(&types.Document{Hostname: "node-42"}))
-	require.False(t, m.Match(&types.Document{Hostname: "worker-1"}))
+	require.True(t, m.Match(&tracing.Document{Hostname: "node-42"}))
+	require.False(t, m.Match(&tracing.Document{Hostname: "worker-1"}))
 }
 
 func TestWatchFilters_Matcher_ContainerHostnameFilter(t *testing.T) {
 	wf := WatchFilters{ContainerHostname: "^app-.*"}
 	m, _ := wf.matcher()
 
-	require.True(t, m.Match(&types.Document{ContainerHostname: "app-123"}))
-	require.False(t, m.Match(&types.Document{ContainerHostname: "db-456"}))
+	require.True(t, m.Match(&tracing.Document{ContainerHostname: "app-123"}))
+	require.False(t, m.Match(&tracing.Document{ContainerHostname: "db-456"}))
 }
 
 func TestWatchFilters_Matcher_RegionFilter(t *testing.T) {
 	wf := WatchFilters{Region: "^cn"}
 	m, _ := wf.matcher()
 
-	require.True(t, m.Match(&types.Document{Region: "cn-north"}))
-	require.False(t, m.Match(&types.Document{Region: "us-east"}))
+	require.True(t, m.Match(&tracing.Document{Region: "cn-north"}))
+	require.False(t, m.Match(&tracing.Document{Region: "us-east"}))
 }

@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"huatuo-bamai/internal/bpf"
-	"huatuo-bamai/internal/storage"
+	"huatuo-bamai/internal/log"
 	"huatuo-bamai/pkg/metric"
 	"huatuo-bamai/pkg/tracing"
 
@@ -93,7 +93,7 @@ type rasEvent struct {
 	Info      [RAS_PERFEVENT_INFO_SIZE]byte
 }
 
-// RasTracingData is the structured record persisted by storage.Save.
+// RasTracingData is the structured record persisted by tracing.Save.
 type RasTracingData struct {
 	Device    string `json:"dev"`
 	Event     string `json:"event"`
@@ -609,7 +609,13 @@ func (ras *rasTracing) rasEventLoop(ctx context.Context, reader bpf.PerfEventRea
 				continue
 			}
 
-			storage.Save("ras", "", time.Now(), tracerData)
+			if err := tracing.Save(&tracing.WriteRequest{
+				TracerName: "ras",
+				TracerTime: time.Now(),
+				TracerData: tracerData,
+			}); err != nil {
+				log.Warnf("failed to save tracing data: %v", err)
+			}
 		}
 	}
 }

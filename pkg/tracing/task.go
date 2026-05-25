@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"huatuo-bamai/internal/log"
-	"huatuo-bamai/internal/storage"
 )
 
 // Status represents the status of a task.
@@ -53,6 +52,7 @@ const (
 	TaskStorageDB TaskStorageType = iota + 1
 	TaskStorageStdout
 	TaskStorageLocal
+	TaskStorageDBJSON // JSON data
 )
 
 type TaskResult struct {
@@ -167,18 +167,38 @@ func runTask(ctx context.Context, task *task) {
 		return
 	}
 
-	switch task.storage {
-	case TaskStorageDB:
-		storage.SaveTaskOutput(task.execBinary, task.id, "", time.Now(), string(output))
-	case TaskStorageStdout:
-		task.stdoutData = output
-	case TaskStorageLocal:
-	default:
-		log.Warn("not supported")
-	}
+	saveTaskOutputByType(task, time.Now(), output)
 
 	task.status = StatusCompleted
 	log.Infof("task %s completed: %s", task.id, fmt.Sprint(task.execBinary, task.execArgs))
+}
+
+func saveTaskOutputByType(task *task, startAt time.Time, output []byte) {
+	switch task.storage {
+	case TaskStorageDB:
+		if err := SaveTaskOutputText(&WriteRequest{
+			TracerName: task.execBinary,
+			TracerID:   task.id,
+			TracerTime: startAt,
+			TracerData: string(output),
+		}); err != nil {
+			log.Infof("save task output %s %s failed: %v", task.execBinary, task.id, err)
+		}
+	case TaskStorageDBJSON:
+		if err := SaveTaskOutputJSON(&WriteRequest{
+			TracerName: task.execBinary,
+			TracerID:   task.id,
+			TracerTime: startAt,
+			TracerData: string(output),
+		}); err != nil {
+			log.Infof("save task json output %s %s failed: %v", task.execBinary, task.id, err)
+		}
+	case TaskStorageStdout:
+		task.stdoutData = append(task.stdoutData, output...)
+	case TaskStorageLocal:
+	default:
+		log.Warn("data storage type not supported")
+	}
 }
 
 func setDeadlineDefault(task *task) {

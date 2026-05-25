@@ -26,7 +26,6 @@ import (
 	"huatuo-bamai/internal/log"
 	"huatuo-bamai/internal/matcher"
 	"huatuo-bamai/internal/pod"
-	"huatuo-bamai/internal/storage"
 	"huatuo-bamai/pkg/tracing"
 	"huatuo-bamai/pkg/types"
 
@@ -196,7 +195,14 @@ func buildAndSaveDloadContainer(thresh *dloadThreshold, container *containerDloa
 	knownIssue, _ := matcher.Classify(cfg.IssuesList, stackCgrp)
 	data.KnownIssue = knownIssue
 
-	storage.Save("dload", containerID, time.Now(), data)
+	if err := tracing.Save(&tracing.WriteRequest{
+		TracerName:  "dload",
+		ContainerID: containerID,
+		TracerTime:  time.Now(),
+		TracerData:  data,
+	}); err != nil {
+		log.Warnf("failed to save tracing data: %v", err)
+	}
 	return nil
 }
 

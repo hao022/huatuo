@@ -23,7 +23,6 @@ import (
 
 	"huatuo-bamai/internal/log"
 	"huatuo-bamai/internal/procfs/blockdevice"
-	"huatuo-bamai/internal/storage"
 	"huatuo-bamai/internal/symbol"
 	"huatuo-bamai/pkg/tracing"
 	"huatuo-bamai/pkg/types"
@@ -293,7 +292,13 @@ func (c *ioTracing) Start(ctx context.Context) error {
 					return fmt.Errorf("failed to unmarshal ioStatusData: %w", err)
 				}
 
-				storage.Save("iotracing", "", time.Now(), &ioStatusData)
+				if err := tracing.Save(&tracing.WriteRequest{
+					TracerName: "iotracing",
+					TracerTime: time.Now(),
+					TracerData: &ioStatusData,
+				}); err != nil {
+					log.Warnf("failed to save tracing data: %v", err)
+				}
 				return nil
 			case tracing.StatusFailed:
 				return result.TaskErr
