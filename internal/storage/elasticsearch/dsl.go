@@ -19,77 +19,29 @@ import (
 	"fmt"
 	"regexp"
 
+	escount "github.com/elastic/go-elasticsearch/v8/typedapi/core/count"
+	essearch "github.com/elastic/go-elasticsearch/v8/typedapi/core/search"
+	"github.com/elastic/go-elasticsearch/v8/typedapi/types"
+	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/sortorder"
+
 	"huatuo-bamai/internal/storage/driver"
 )
 
 var fieldNamePattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_.]*$`)
 
-func validateFieldName(field string) error {
-	if !fieldNamePattern.MatchString(field) {
-		return driver.ErrInvalidField
-	}
-	return nil
-}
-
-// Plain JSON types for Elasticsearch request bodies. Using explicit structs
-// instead of typedapi avoids the 22 MB typedapi vendor footprint.
 type (
-	termClause  map[string]any
-	rangeClause map[string]any
-	termsClause map[string]any
-
-	boolQuery struct {
-		Filter  []map[string]any `json:"filter,omitempty"`
-		MustNot []map[string]any `json:"must_not,omitempty"`
-	}
-
-	searchRequest struct {
-		Query          map[string]any   `json:"query,omitempty"`
-		Sort           []map[string]any `json:"sort,omitempty"`
-		Size           int              `json:"size"`
-		From           int              `json:"from,omitempty"`
-		TrackTotalHits bool             `json:"track_total_hits"`
-	}
-
-	countRequest struct {
-		Query map[string]any `json:"query,omitempty"`
-	}
-
 	termsAgg struct {
 		Field string `json:"field"`
 		Size  int    `json:"size"`
 	}
-
 	termsAggBody struct {
 		Terms termsAgg `json:"terms"`
 	}
-
-	valuesRequest struct {
+	valuesBody struct {
 		Size  int                     `json:"size"`
-		Query map[string]any          `json:"query,omitempty"`
+		Query *types.Query            `json:"query,omitempty"`
 		Aggs  map[string]termsAggBody `json:"aggs"`
 	}
-
-	// Response types for Elasticsearch API responses.
-	getResponse struct {
-		Found  bool            `json:"found"`
-		ID     string          `json:"_id"`
-		Source json.RawMessage `json:"_source"`
-	}
-
-	searchResponse struct {
-		Hits struct {
-			Hits []struct {
-				ID     string          `json:"_id"`
-				Source json.RawMessage `json:"_source"`
-			} `json:"hits"`
-		} `json:"hits"`
-	}
-
-	countResponse struct {
-		Count int64 `json:"count"`
-	}
-
 	valuesResponse struct {
 		Aggregations struct {
 			Terms struct {
@@ -100,6 +52,13 @@ type (
 		} `json:"aggregations"`
 	}
 )
+
+func validateFieldName(field string) error {
+	if !fieldNamePattern.MatchString(field) {
+		return driver.ErrInvalidField
+	}
+	return nil
+}
 
 func buildSearchRequest(q driver.Query) ([]byte, error) {
 	if q.Limit < 0 || q.Offset < 0 {
@@ -115,16 +74,18 @@ func buildSearchRequest(q driver.Query) ([]byte, error) {
 	if q.Limit > 0 {
 		size = q.Limit
 	}
-	req := searchRequest{
+	req := essearch.Request{
 		Query:          query,
-		Size:           size,
-		From:           q.Offset,
 		TrackTotalHits: true,
+		Size:           &size,
+	}
+	if q.Offset > 0 {
+		req.From = &q.Offset
 	}
 	if len(q.Sorts) > 0 {
-		sorts, sortErr := buildSort(q.Sorts)
-		if sortErr != nil {
-			return nil, sortErr
+		sorts, err := buildSort(q.Sorts)
+		if err != nil {
+			return nil, err
 		}
 		req.Sort = sorts
 	}
@@ -140,7 +101,7 @@ func buildCountRequest(q driver.Query) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return json.Marshal(countRequest{Query: query})
+	return json.Marshal(escount.Request{Query: query})
 }
 
 func buildValuesRequest(field string, q driver.Query, size int) ([]byte, error) {
@@ -158,7 +119,7 @@ func buildValuesRequest(field string, q driver.Query, size int) ([]byte, error) 
 	if err != nil {
 		return nil, err
 	}
-	body := valuesRequest{
+	body := valuesBody{
 		Size:  0,
 		Query: query,
 		Aggs:  map[string]termsAggBody{"terms": {Terms: termsAgg{Field: field, Size: size}}},
@@ -166,16 +127,16 @@ func buildValuesRequest(field string, q driver.Query, size int) ([]byte, error) 
 	return json.Marshal(body)
 }
 
-func buildQuery(filters []driver.Filter) (map[string]any, error) {
+func buildQuery(filters []driver.Filter) (*types.Query, error) {
 	if len(filters) == 0 {
-		return map[string]any{"match_all": map[string]any{}}, nil
+		return &types.Query{MatchAll: &types.MatchAllQuery{}}, nil
 	}
 
-	var filterClauses []map[string]any
-	var mustNotClauses []map[string]any
+	var filterClauses []types.Query
+	var mustNotClauses []types.Query
 
-	for _, f := range filters {
-		clause, negate, err := buildClause(f)
+	for _, filter := range filters {
+		clause, negate, err := buildClause(filter)
 		if err != nil {
 			return nil, err
 		}
@@ -186,60 +147,140 @@ func buildQuery(filters []driver.Filter) (map[string]any, error) {
 		}
 	}
 
-	bq := map[string]any{}
+	boolQuery := &types.BoolQuery{}
+
 	if len(filterClauses) > 0 {
-		bq["filter"] = filterClauses
+		boolQuery.Filter = filterClauses
 	}
 	if len(mustNotClauses) > 0 {
-		bq["must_not"] = mustNotClauses
+		boolQuery.MustNot = mustNotClauses
 	}
-	return map[string]any{"bool": bq}, nil
+	return &types.Query{Bool: boolQuery}, nil
 }
 
-func buildClause(filter driver.Filter) (map[string]any, bool, error) {
+func buildClause(filter driver.Filter) (types.Query, bool, error) {
 	if err := validateFieldName(filter.Field); err != nil {
-		return nil, false, err
+		return types.Query{}, false, err
 	}
 
 	switch filter.Op {
 	case driver.OpEq:
-		return map[string]any{"term": map[string]any{filter.Field: driver.NormalizeValue(filter.Value)}}, false, nil
+		q := types.Query{Term: map[string]types.TermQuery{filter.Field: {Value: driver.NormalizeValue(filter.Value)}}}
+		return q, false, nil
 	case driver.OpNe:
-		return map[string]any{"term": map[string]any{filter.Field: driver.NormalizeValue(filter.Value)}}, true, nil
+		q := types.Query{Term: map[string]types.TermQuery{filter.Field: {Value: driver.NormalizeValue(filter.Value)}}}
+		return q, true, nil
 	case driver.OpGt, driver.OpGte, driver.OpLt, driver.OpLte:
-		clause, err := buildRangeClause(filter)
+		rangeQ, err := buildRangeClause(filter)
 		if err != nil {
-			return nil, false, err
+			return types.Query{}, false, err
 		}
-		return map[string]any{"range": map[string]any{filter.Field: clause}}, false, nil
+		return types.Query{Range: map[string]types.RangeQuery{filter.Field: rangeQ}}, false, nil
 	case driver.OpIn:
 		values, err := driver.FlattenInValues(filter.Value)
 		if err != nil {
-			return nil, false, err
+			return types.Query{}, false, err
 		}
-		return map[string]any{"terms": map[string]any{filter.Field: values}}, false, nil
+		termsQ := types.NewTermsQuery()
+		termsQ.TermsQuery[filter.Field] = values
+		return types.Query{Terms: termsQ}, false, nil
 	default:
-		return nil, false, fmt.Errorf("%w: %s", driver.ErrUnsupportedOp, filter.Op)
+		return types.Query{}, false, fmt.Errorf("%w: %s", driver.ErrUnsupportedOp, filter.Op)
 	}
 }
 
-func buildRangeClause(filter driver.Filter) (map[string]any, error) {
-	normalized := driver.NormalizeValue(filter.Value)
-	opKey := string(filter.Op)
-	return map[string]any{opKey: normalized}, nil
+func buildRangeClause(filter driver.Filter) (types.RangeQuery, error) {
+	if s, ok := driver.NormalizeValue(filter.Value).(string); ok {
+		return buildDateRangeClause(filter.Op, s)
+	}
+	f, ok := asFloat64(filter.Value)
+	if !ok {
+		return nil, fmt.Errorf("%w: unsupported range value type", driver.ErrUnsupportedOp)
+	}
+	return buildNumberRangeClause(filter.Op, f)
 }
 
-func buildSort(sorts []driver.Sort) ([]map[string]any, error) {
-	result := make([]map[string]any, 0, len(sorts))
+func buildNumberRangeClause(op driver.Op, value float64) (types.RangeQuery, error) {
+	f := types.Float64(value)
+	q := types.NumberRangeQuery{}
+
+	switch op {
+	case driver.OpGt:
+		q.Gt = &f
+	case driver.OpGte:
+		q.Gte = &f
+	case driver.OpLt:
+		q.Lt = &f
+	case driver.OpLte:
+		q.Lte = &f
+	default:
+		return nil, fmt.Errorf("%w: %s", driver.ErrUnsupportedOp, op)
+	}
+	return q, nil
+}
+
+func buildDateRangeClause(op driver.Op, value string) (types.RangeQuery, error) {
+	q := types.DateRangeQuery{}
+
+	switch op {
+	case driver.OpGt:
+		q.Gt = &value
+	case driver.OpGte:
+		q.Gte = &value
+	case driver.OpLt:
+		q.Lt = &value
+	case driver.OpLte:
+		q.Lte = &value
+	default:
+		return nil, fmt.Errorf("%w: %s", driver.ErrUnsupportedOp, op)
+	}
+	return q, nil
+}
+
+func buildSort(sorts []driver.Sort) ([]types.SortCombinations, error) {
+	result := make([]types.SortCombinations, 0, len(sorts))
 	for _, s := range sorts {
 		if err := validateFieldName(s.Field); err != nil {
 			return nil, err
 		}
-		order := "asc"
+		order := sortorder.Asc
 		if s.Desc {
-			order = "desc"
+			order = sortorder.Desc
 		}
-		result = append(result, map[string]any{s.Field: map[string]any{"order": order}})
+		opt := types.NewSortOptions()
+		opt.SortOptions[s.Field] = types.FieldSort{Order: &order}
+		result = append(result, opt)
 	}
 	return result, nil
+}
+
+func asFloat64(value any) (float64, bool) {
+	switch v := value.(type) {
+	case float64:
+		return v, true
+	case float32:
+		return float64(v), true
+	case int:
+		return float64(v), true
+	case int8:
+		return float64(v), true
+	case int16:
+		return float64(v), true
+	case int32:
+		return float64(v), true
+	case int64:
+		return float64(v), true
+	case uint:
+		return float64(v), true
+	case uint8:
+		return float64(v), true
+	case uint16:
+		return float64(v), true
+	case uint32:
+		return float64(v), true
+	case uint64:
+		return float64(v), true
+	default:
+		return 0, false
+	}
 }

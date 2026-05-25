@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Package elasticsearch implements a storage backend compatible with
-// Elasticsearch v7/v8 and OpenSearch using the go-elasticsearch/v8 esapi.
+// Elasticsearch v7/v8 and OpenSearch using the official go-elasticsearch/v8 SDK.
 package elasticsearch
 
 import (
@@ -26,6 +26,9 @@ import (
 	"strings"
 
 	"github.com/elastic/go-elasticsearch/v8/esapi"
+	escount "github.com/elastic/go-elasticsearch/v8/typedapi/core/count"
+	esget "github.com/elastic/go-elasticsearch/v8/typedapi/core/get"
+	essearch "github.com/elastic/go-elasticsearch/v8/typedapi/core/search"
 
 	"huatuo-bamai/internal/storage/driver"
 )
@@ -70,11 +73,11 @@ func NewBackend(cfg *Config) (*Storage, error) {
 	if prefix == "" {
 		prefix = defaultIndex
 	}
-	transport, err := newCompatTransport(cfg.Addresses, cfg.Username, cfg.Password)
+	client, err := newCompatClient(cfg.Addresses, cfg.Username, cfg.Password)
 	if err != nil {
 		return nil, err
 	}
-	return &Storage{transport: transport, index: prefix}, nil
+	return &Storage{transport: client, index: prefix}, nil
 }
 
 func (s *Storage) Init(_ context.Context, _ string, indexes []driver.Index) error {
@@ -119,18 +122,18 @@ func (s *Storage) Get(ctx context.Context, id string) (rec driver.Record, err er
 		return rec, responseError("get document", s.index, res)
 	}
 
-	var payload getResponse
+	var payload esget.Response
 	if err = json.NewDecoder(res.Body).Decode(&payload); err != nil {
 		return rec, fmt.Errorf("elasticsearch backend get %s/%s: decode: %w", s.index, id, err)
 	}
 	if !payload.Found {
 		return rec, driver.ErrNotFound
 	}
-	recordID := payload.ID
+	recordID := payload.Id_
 	if recordID == "" {
 		recordID = id
 	}
-	return driver.Record{ID: recordID, Data: driver.CloneBytes(payload.Source)}, nil
+	return driver.Record{ID: recordID, Data: driver.CloneBytes(payload.Source_)}, nil
 }
 
 func (s *Storage) Delete(ctx context.Context, id string) error {
@@ -167,14 +170,18 @@ func (s *Storage) Query(ctx context.Context, q driver.Query) ([]driver.Record, e
 		return nil, responseError("query documents", s.index, res)
 	}
 
-	var payload searchResponse
+	var payload essearch.Response
 	if err := json.NewDecoder(res.Body).Decode(&payload); err != nil {
 		return nil, fmt.Errorf("elasticsearch backend query %s: decode: %w", s.index, err)
 	}
 	records := make([]driver.Record, 0, len(payload.Hits.Hits))
 	for i := range payload.Hits.Hits {
 		hit := &payload.Hits.Hits[i]
-		records = append(records, driver.Record{ID: hit.ID, Data: driver.CloneBytes(hit.Source)})
+		id := ""
+		if hit.Id_ != nil {
+			id = *hit.Id_
+		}
+		records = append(records, driver.Record{ID: id, Data: driver.CloneBytes(hit.Source_)})
 	}
 	return records, nil
 }
@@ -196,7 +203,7 @@ func (s *Storage) Count(ctx context.Context, q driver.Query) (int64, error) {
 		return 0, responseError("count documents", s.index, res)
 	}
 
-	var payload countResponse
+	var payload escount.Response
 	if err := json.NewDecoder(res.Body).Decode(&payload); err != nil {
 		return 0, fmt.Errorf("elasticsearch backend count %s: decode: %w", s.index, err)
 	}

@@ -15,16 +15,13 @@
 package elasticsearch
 
 import (
-	"context"
 	"crypto/tls"
 	"fmt"
 	"net"
 	"net/http"
-	"net/url"
 	"time"
 
-	"github.com/elastic/elastic-transport-go/v8/elastictransport"
-	"github.com/elastic/go-elasticsearch/v8/esapi"
+	elasticsearch "github.com/elastic/go-elasticsearch/v8"
 )
 
 var defaultTransport http.RoundTripper = &http.Transport{
@@ -53,41 +50,33 @@ func (t *productHeaderTransport) RoundTrip(req *http.Request) (*http.Response, e
 	return resp, nil
 }
 
-// newCompatTransport creates a transport that works with ES v7/v8 and OpenSearch.
-func newCompatTransport(addresses []string, username, password string) (esapi.Transport, error) {
-	urls := make([]*url.URL, 0, len(addresses))
-	for _, addr := range addresses {
-		u, err := url.Parse(addr)
-		if err != nil {
-			return nil, fmt.Errorf("elasticsearch parse address %q: %w", addr, err)
-		}
-		urls = append(urls, u)
-	}
-	if len(urls) == 0 {
-		u, _ := url.Parse("http://localhost:9200")
-		urls = append(urls, u)
-	}
-
-	tp, err := elastictransport.New(elastictransport.Config{
-		URLs:      urls,
-		Username:  username,
-		Password:  password,
-		Transport: &productHeaderTransport{inner: defaultTransport},
+// newCompatClient returns an *elasticsearch.Client that connects to ES v7 or
+// ES v8 without any caller-side branching.
+//
+//   - ES v8:         native support.
+//   - ES v7 ≥ 7.14: CompatibilityMode headers + native product header.
+//   - ES v7 < 7.14: CompatibilityMode headers + injected product header.
+//   - OpenSearch:    returns X-Elastic-Product natively; no separate client needed.
+func newCompatClient(addresses []string, username, password string) (*elasticsearch.Client, error) {
+	client, err := elasticsearch.NewClient(elasticsearch.Config{
+		Addresses:               addresses,
+		Username:                username,
+		Password:                password,
+		EnableCompatibilityMode: true,
+		Transport:               &productHeaderTransport{inner: defaultTransport},
 	})
 	if err != nil {
-		return nil, fmt.Errorf("elasticsearch new transport: %w", err)
+		return nil, fmt.Errorf("elasticsearch new client: %w", err)
 	}
 
-	// Probe connectivity.
-	req := esapi.InfoRequest{}
-	res, err := req.Do(context.Background(), tp)
+	res, err := client.Info()
 	if err != nil {
-		return nil, fmt.Errorf("elasticsearch info probe: %w", err)
+		return nil, fmt.Errorf("elasticsearch client info: %w", err)
 	}
 	defer res.Body.Close()
 
 	if res.IsError() {
-		return nil, fmt.Errorf("elasticsearch info probe: status %d", res.StatusCode)
+		return nil, fmt.Errorf("elasticsearch client info: status %d", res.StatusCode)
 	}
-	return tp, nil
+	return client, nil
 }
