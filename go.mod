@@ -9,7 +9,9 @@ require (
 	github.com/deckarep/golang-set v1.8.0
 	github.com/docker/docker v27.4.1+incompatible
 	github.com/ebitengine/purego v0.9.1
+	github.com/elastic/elastic-transport-go/v8 v8.6.1
 	github.com/elastic/go-elasticsearch/v7 v7.17.10
+	github.com/elastic/go-elasticsearch/v8 v8.17.1
 	github.com/ema/qdisc v1.0.0
 	github.com/gin-contrib/pprof v1.5.1
 	github.com/gin-gonic/gin v1.10.0
