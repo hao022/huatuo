@@ -24,6 +24,7 @@ import (
 // Store is a generic, backend-agnostic CRUD abstraction; a Mapper[T] handles
 // encoding, decoding, and index declarations for the domain type T.
 type Store[T any] struct {
+	Name    string
 	backend driver.Backend
 	mapper  driver.Mapper[T]
 }
@@ -35,12 +36,12 @@ func NewFromConfig[T any](ctx context.Context, cfg *driver.Config, mapper driver
 		return nil, err
 	}
 
-	return NewStore(ctx, backend, mapper)
+	return NewStore(ctx, cfg.Driver, backend, mapper)
 }
 
 // NewStore validates that backend and mapper are non-nil, verifies the collection
 // name, and calls backend.Init to create tables and indexes.
-func NewStore[T any](ctx context.Context, backend driver.Backend, mapper driver.Mapper[T]) (*Store[T], error) {
+func NewStore[T any](ctx context.Context, name string, backend driver.Backend, mapper driver.Mapper[T]) (*Store[T], error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -67,6 +68,7 @@ func NewStore[T any](ctx context.Context, backend driver.Backend, mapper driver.
 	}
 
 	return &Store[T]{
+		Name:    name,
 		backend: backend,
 		mapper:  mapper,
 	}, nil

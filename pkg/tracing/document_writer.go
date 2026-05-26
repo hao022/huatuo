@@ -91,7 +91,7 @@ func (s *documentWriter) saveDocument(document *Document) error {
 			continue
 		}
 		if err := store.Save(context.Background(), document); err != nil {
-			errs = append(errs, err)
+			errs = append(errs, fmt.Errorf("[storage backend: %s, err: %w]", store.Name, err))
 		}
 	}
 
