@@ -14,13 +14,14 @@ APP_CMD_SUBDIRS := $(shell find $(APP_CMD_DIR) -mindepth 1 -maxdepth 1 -type d)
 APP_CMD_BIN_TARGETS := $(patsubst %,$(APP_CMD_OUTPUT)/bin/%,$(notdir $(APP_CMD_SUBDIRS)))
 
 GO_BUILD_FLAGS := CGO_ENABLED=1 go build -tags "netgo osusergo" -gcflags=all="-N -l"
-GO_VERSION_LDFLAGS := \
+GO_BUILD_LDFLAGS := \
+	-s -w \
 	-X main.AppVersion=$(APP_VERSION) \
 	-X main.AppGitCommit=$(APP_COMMIT) \
 	-X main.AppBuildTime=$(APP_BUILD_TIME)
 
-GO_BUILD_STATIC := $(GO_BUILD_FLAGS) -ldflags "-extldflags -static $(GO_VERSION_LDFLAGS)"
-GO_BUILD_NOSTATIC := $(GO_BUILD_FLAGS) -ldflags "$(GO_VERSION_LDFLAGS)"
+GO_BUILD_STATIC := $(GO_BUILD_FLAGS) -ldflags "-extldflags -static $(GO_BUILD_LDFLAGS)"
+GO_BUILD_NOSTATIC := $(GO_BUILD_FLAGS) -ldflags "$(GO_BUILD_LDFLAGS)"
 GO_SRCS := $(shell find . -name "*.go" \
 	! -name "*_test.go" \
 	! -path "./.git/*"\
