@@ -26,6 +26,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.21.0-rc.0
 	github.com/prometheus/procfs v0.19.2
+	github.com/rs/xid v1.6.0
 	github.com/safchain/ethtool v0.6.2
 	github.com/shirou/gopsutil v2.21.11+incompatible
 	github.com/sirupsen/logrus v1.9.3

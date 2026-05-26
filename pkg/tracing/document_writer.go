@@ -22,6 +22,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/rs/xid"
+
 	"huatuo-bamai/internal/pod"
 	"huatuo-bamai/internal/storage"
 )
@@ -108,6 +110,9 @@ func newBaseDocument(options DocumentOptions, req *WriteRequest) (*Document, err
 		TracerRunType: req.TracerRunType,
 		TracerData:    req.TracerData,
 		TracerID:      req.TracerID,
+	}
+	if document.TracerID == "" {
+		document.TracerID = xid.New().String()
 	}
 
 	if req.ContainerID == "" {
