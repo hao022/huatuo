@@ -30,6 +30,7 @@ import (
 	esget "github.com/elastic/go-elasticsearch/v8/typedapi/core/get"
 	essearch "github.com/elastic/go-elasticsearch/v8/typedapi/core/search"
 
+	"huatuo-bamai/internal/log"
 	"huatuo-bamai/internal/storage/driver"
 )
 
@@ -104,6 +105,8 @@ func (s *Storage) Save(ctx context.Context, rec driver.Record) error {
 	if res.IsError() {
 		return responseError("save document", s.index, res)
 	}
+
+	log.Debugf("elasticsearch save index=%s id=%s statuscode=%d data=%s", s.index, rec.ID, res.StatusCode, rec.Data)
 	return nil
 }
 
