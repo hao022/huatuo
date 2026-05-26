@@ -57,7 +57,7 @@ Both Elasticsearch and OpenSearch provide native data source integrations with G
 
 ## 🚀 Usage
 
-### OpenSearch Storage
+### OpenSearch V2
 
 #### 1. Deploy OpenSearch
 
@@ -285,6 +285,102 @@ Example response:
       }
     }
 }
+```
+
+To get the total document count without listing individual records:
+
+```bash
+curl -k -u elastic:123456 -X GET "https://localhost:9200/huatuo_bamai/_count?pretty"
+```
+
+Example response: the `count` value equals the total number of written records.
+
+```json
+{
+  "count" : 2680,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "skipped" : 0,
+    "failed" : 0
+  }
+}
+```
+
+### Elasticsearch V7
+
+Elasticsearch V7 uses HTTP by default. Replace `https` with `http` in all commands.
+
+#### 1. Deploy Elasticsearch
+
+```bash
+docker pull docker.elastic.co/elasticsearch/elasticsearch:7.10.1
+docker run -d --name elasticsearch -p 9200:9200 -p 9300:9300 \
+  -e "discovery.type=single-node" \
+  -e "ES_JAVA_OPTS=-Xms1g -Xmx1g" \
+  -e "ELASTIC_PASSWORD=123456" \
+  docker.elastic.co/elasticsearch/elasticsearch:7.10.1
+```
+
+#### 2. Verify Service Status
+
+```bash
+curl -k -u elastic:123456 http://localhost:9200
+```
+
+Example response:
+
+```json
+{
+  "name" : "d88c9e8df48b",
+  "cluster_name" : "docker-cluster",
+  "cluster_uuid" : "_ZZefWx4SniAc255t_lIVg",
+  "version" : {
+    "number" : "7.10.1",
+    "build_flavor" : "default",
+    "build_type" : "docker",
+    "build_hash" : "1c34507e66d7db1211f66f3513706fdf548736aa",
+    "build_date" : "2020-12-05T01:00:33.671820Z",
+    "build_snapshot" : false,
+    "lucene_version" : "8.7.0",
+    "minimum_wire_compatibility_version" : "6.8.0",
+    "minimum_index_compatibility_version" : "6.0.0-beta1"
+  },
+  "tagline" : "You Know, for Search"
+}
+```
+
+#### 3. Configure huatuo-bamai
+
+```toml
+[Storage.ES]
+    Address = "http://127.0.0.1:9200"
+    Index = "huatuo_bamai"
+    Username = "elastic"
+    Password = "123456"
+```
+
+#### 4. Start huatuo-bamai
+
+Use `--config-dir` to specify the directory containing the configuration file:
+
+```bash
+./_output/bin/huatuo-bamai --region dev --config-dir .
+```
+
+When files (e.g., `net_rx_latency`) appear in the local storage directory `huatuo-local/`, kernel events have been successfully captured. Query data from Elasticsearch with:
+
+```bash
+curl -k -u elastic:123456 \
+  -X GET "http://localhost:9200/huatuo_bamai/_search?pretty" \
+  -H "Content-Type: application/json" \
+  -d '{"query": {"match_all": {}}}'
+```
+
+To get the total document count:
+
+```bash
+curl -k -u elastic:123456 -X GET "http://localhost:9200/huatuo_bamai/_count?pretty"
 ```
 
 ---

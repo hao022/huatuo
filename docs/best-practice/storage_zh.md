@@ -57,7 +57,7 @@ Elasticsearch 和 OpenSearch 均提供与 Grafana 的原生数据源对接能力
 
 ## 🚀 使用
 
-### OpenSearch 存储
+### OpenSearch V2
 
 #### 1. 部署 OpenSearch
 
