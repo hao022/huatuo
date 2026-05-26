@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	elasticsearch "github.com/elastic/go-elasticsearch/v8"
@@ -40,6 +41,17 @@ type productHeaderTransport struct {
 }
 
 func (t *productHeaderTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	// OpenSearch 2.x rejects the ES v8 vendor media type with 406.
+	// ES v8 requires Content-Type and Accept to be consistent — rewrite both.
+	content := req.Header.Get("Content-Type")
+	accept := req.Header.Get("Accept")
+	if strings.Contains(content, "application/vnd.elasticsearch") || strings.Contains(accept, "application/vnd.elasticsearch") {
+		req = req.Clone(req.Context())
+		if strings.Contains(content, "application/vnd.elasticsearch") {
+			req.Header.Set("Content-Type", "application/json")
+		}
+		req.Header.Set("Accept", "application/json")
+	}
 	resp, err := t.inner.RoundTrip(req)
 	if err != nil {
 		return nil, err
