@@ -163,9 +163,29 @@ Example response:
 }
 ```
 
+To get the total document count without listing individual records:
+
+```bash
+curl -k -u admin:admin -X GET "https://localhost:9200/huatuo_bamai/_count?pretty"
+```
+
+Example response: the `count` value equals the total number of written records.
+
+```json
+{
+  "count" : 2680,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "skipped" : 0,
+    "failed" : 0
+  }
+}
+```
+
 ---
 
-### Elasticsearch Storage
+### Elasticsearch V8
 
 #### 1. Deploy Elasticsearch
 
