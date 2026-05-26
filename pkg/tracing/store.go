@@ -25,6 +25,7 @@ const (
 
 	TracerRunTypeTask        = "task"
 	TracerRunTypeAutotracing = "autotracing"
+	TracerRunTypeEvent       = "event"
 )
 
 // DocumentOptions contains common fields applied to tracing documents.
@@ -64,7 +65,9 @@ func Save(req *WriteRequest) error {
 		return nil
 	}
 
-	req.TracerRunType = TracerRunTypeAutotracing
+	if req.TracerRunType == "" {
+		req.TracerRunType = TracerRunTypeEvent
+	}
 	return tracingDataWriter.saveRaw(req)
 }
 

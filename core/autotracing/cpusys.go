@@ -150,9 +150,10 @@ func (c *cpuSysTracing) buildAndSaveCPUSystem(traceTime time.Time, threshold *cp
 
 	log.Debugf("cpuidle flamedata %v", tracerData.FlameData)
 	if err := tracing.Save(&tracing.WriteRequest{
-		TracerName: "cpusys",
-		TracerTime: traceTime,
-		TracerData: &tracerData,
+		TracerName:    "cpusys",
+		TracerTime:    traceTime,
+		TracerData:    &tracerData,
+		TracerRunType: tracing.TracerRunTypeAutotracing,
 	}); err != nil {
 		log.Warnf("failed to save tracing data: %v", err)
 	}

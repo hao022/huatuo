@@ -196,10 +196,11 @@ func buildAndSaveDloadContainer(thresh *dloadThreshold, container *containerDloa
 	data.KnownIssue = knownIssue
 
 	if err := tracing.Save(&tracing.WriteRequest{
-		TracerName:  "dload",
-		ContainerID: containerID,
-		TracerTime:  time.Now(),
-		TracerData:  data,
+		TracerName:    "dload",
+		ContainerID:   containerID,
+		TracerTime:    time.Now(),
+		TracerData:    data,
+		TracerRunType: tracing.TracerRunTypeAutotracing,
 	}); err != nil {
 		log.Warnf("failed to save tracing data: %v", err)
 	}

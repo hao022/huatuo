@@ -293,9 +293,10 @@ func (c *ioTracing) Start(ctx context.Context) error {
 				}
 
 				if err := tracing.Save(&tracing.WriteRequest{
-					TracerName: "iotracing",
-					TracerTime: time.Now(),
-					TracerData: &ioStatusData,
+					TracerName:    "iotracing",
+					TracerTime:    time.Now(),
+					TracerData:    &ioStatusData,
+					TracerRunType: tracing.TracerRunTypeAutotracing,
 				}); err != nil {
 					log.Warnf("failed to save tracing data: %v", err)
 				}

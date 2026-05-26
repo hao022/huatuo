@@ -267,10 +267,11 @@ func buildAndSaveCPUIdleContainer(container *containerCPUInfo, threshold *cpuIdl
 
 	log.Debugf("cpuidle flamedata %v", tracerData.FlameData)
 	if err := tracing.Save(&tracing.WriteRequest{
-		TracerName:  "cpuidle",
-		ContainerID: container.id,
-		TracerTime:  container.traceTime,
-		TracerData:  &tracerData,
+		TracerName:    "cpuidle",
+		ContainerID:   container.id,
+		TracerTime:    container.traceTime,
+		TracerData:    &tracerData,
+		TracerRunType: tracing.TracerRunTypeAutotracing,
 	}); err != nil {
 		log.Warnf("failed to save tracing data: %v", err)
 	}

@@ -238,9 +238,10 @@ func (c *memBurstTracing) Start(ctx context.Context) error {
 		lastReportTime = currentTime
 
 		if err := tracing.Save(&tracing.WriteRequest{
-			TracerName: "memburst",
-			TracerTime: time.Now(),
-			TracerData: &MemoryTracingData{TopMemoryUsage: topProcesses},
+			TracerName:    "memburst",
+			TracerTime:    time.Now(),
+			TracerData:    &MemoryTracingData{TopMemoryUsage: topProcesses},
+			TracerRunType: tracing.TracerRunTypeAutotracing,
 		}); err != nil {
 			log.Warnf("failed to save tracing data: %v", err)
 		}
