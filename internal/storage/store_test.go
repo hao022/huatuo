@@ -279,7 +279,7 @@ func TestNewStore(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			store, err := NewStore[testEntity](t.Context(), tc.backend, tc.mapper)
+			store, err := NewStore[testEntity](t.Context(), tc.name, tc.backend, tc.mapper)
 
 			typedBackend, _ := tc.backend.(*testBackend)
 			tc.validate(t, store, err, typedBackend)
@@ -392,7 +392,7 @@ func TestStoreSave(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			store, err := NewStore[testEntity](t.Context(), tc.backend, tc.mapper)
+			store, err := NewStore[testEntity](t.Context(), tc.name, tc.backend, tc.mapper)
 			if err != nil {
 				t.Errorf("NewStore() returned error: %v", err)
 				return
@@ -482,7 +482,7 @@ func TestStoreGet(t *testing.T) {
 				mapper.decodeErr = errors.New("decode failed")
 			}
 
-			store, err := NewStore[testEntity](t.Context(), tc.backend, mapper)
+			store, err := NewStore[testEntity](t.Context(), tc.name, tc.backend, mapper)
 			if err != nil {
 				t.Errorf("NewStore() returned error: %v", err)
 				return
@@ -534,7 +534,7 @@ func TestStoreDelete(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			store, err := NewStore[testEntity](t.Context(), tc.backend, newTestMapper())
+			store, err := NewStore[testEntity](t.Context(), tc.name, tc.backend, newTestMapper())
 			if err != nil {
 				t.Errorf("NewStore() returned error: %v", err)
 				return
@@ -636,7 +636,7 @@ func TestStoreQuery(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			store, err := NewStore[testEntity](t.Context(), tc.backend, tc.mapper)
+			store, err := NewStore[testEntity](t.Context(), tc.name, tc.backend, tc.mapper)
 			if err != nil {
 				t.Errorf("NewStore() returned error: %v", err)
 				return
@@ -718,7 +718,7 @@ func TestStoreCount(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			store, err := NewStore[testEntity](t.Context(), tc.backend, newTestMapper())
+			store, err := NewStore[testEntity](t.Context(), tc.name, tc.backend, newTestMapper())
 			if err != nil {
 				t.Errorf("NewStore() returned error: %v", err)
 				return
@@ -811,7 +811,7 @@ func TestStoreTerms(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			store, err := NewStore[testEntity](t.Context(), tc.backend, newTestMapper())
+			store, err := NewStore[testEntity](t.Context(), tc.name, tc.backend, newTestMapper())
 			if err != nil {
 				t.Errorf("NewStore() returned error: %v", err)
 				return
