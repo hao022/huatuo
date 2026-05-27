@@ -52,7 +52,7 @@ For more information, visit: [https://huatuo.tech](https://huatuo.tech)
 
 # Ecosystem 
 
-![](/docs/img/huatuo-ecosystem.svg)
+![](/docs/img/huatuo-ecosystem.png)
 
 # Getting Started
 
