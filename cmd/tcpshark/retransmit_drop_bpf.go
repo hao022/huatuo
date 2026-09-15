@@ -33,7 +33,6 @@ const (
 	embeddedHardwareProgramSection = "raw_tracepoint/devlink_trap_report"
 	embeddedPerfStatusMapName      = "bpf_perf_out_dropwatch"
 	embeddedRateLimitStateMapName  = "bpf_rlimit_dropwatch"
-	dropwatchPerfBufferSize        = 8192
 )
 
 type dropwatchSource struct {
@@ -98,7 +97,7 @@ func openDropwatchSource(
 	reader, err := object.AttachAndEventPipe(
 		ctx,
 		"perf_events",
-		dropwatchPerfBufferSize,
+		bpf.DefaultPerfEventBufferBytes,
 	)
 	if err != nil {
 		return nil, errors.Join(

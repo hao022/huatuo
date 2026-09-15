@@ -92,7 +92,7 @@ func (*schedTickTracing) Start(ctx context.Context) error {
 	childCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	reader, err := b.EventPipeByName(childCtx, "sched_tick_events", 8192)
+	reader, err := b.EventPipeByName(childCtx, "sched_tick_events", bpf.DefaultPerfEventBufferBytes)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return types.ErrNotSupported

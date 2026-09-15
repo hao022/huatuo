@@ -65,7 +65,7 @@ func (lacp *lacpTracing) Start(ctx context.Context) (err error) {
 	childCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	reader, err := b.AttachAndEventPipe(childCtx, "ad_event_map", 8192)
+	reader, err := b.AttachAndEventPipe(childCtx, "ad_event_map", bpf.DefaultPerfEventBufferBytes)
 	if err != nil {
 		return fmt.Errorf("attach and event pipe: %w", err)
 	}

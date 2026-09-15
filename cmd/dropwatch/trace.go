@@ -110,7 +110,7 @@ func mainAction(ctx context.Context, options *dropwatchOptions) (returnErr error
 		}()
 	}
 
-	reader, err := bpfObj.AttachAndEventPipe(groupCtx, "perf_events", 8192)
+	reader, err := bpfObj.AttachAndEventPipe(groupCtx, "perf_events", bpf.DefaultPerfEventBufferBytes)
 	if err != nil {
 		return fmt.Errorf("attach BPF programs: %w", err)
 	}

@@ -124,7 +124,7 @@ func (c *netRecvLatTracing) Start(ctx context.Context) error {
 	childCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	reader, err := b.AttachAndEventPipe(childCtx, "net_recv_lat_event_map", 8192)
+	reader, err := b.AttachAndEventPipe(childCtx, "net_recv_lat_event_map", bpf.DefaultPerfEventBufferBytes)
 	if err != nil {
 		return err
 	}

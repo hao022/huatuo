@@ -324,7 +324,7 @@ func cgroupCssInitEventSync() error {
 	childCtx, cancel := context.WithCancel(context.Background())
 	cgroupCssBpfCancelFunc = cancel
 
-	reader, err := cssBpf.AttachAndEventPipe(childCtx, "cgroup_perf_events", 8192)
+	reader, err := cssBpf.AttachAndEventPipe(childCtx, "cgroup_perf_events", bpf.DefaultPerfEventBufferBytes)
 	if err != nil {
 		cancel()
 		return err
@@ -358,7 +358,7 @@ func cgroupCssExistedSync() error {
 		return err
 	}
 
-	reader, err := cssBpf.EventPipeByName(childCtx, "cgroup_perf_events", 8192)
+	reader, err := cssBpf.EventPipeByName(childCtx, "cgroup_perf_events", bpf.DefaultPerfEventBufferBytes)
 	if err != nil {
 		return err
 	}
@@ -566,7 +566,7 @@ func triggerContainerCSSSync(cgroupPath string) error {
 	}
 
 	// Create event reader
-	reader, err := cssBpf.EventPipeByName(childCtx, "cgroup_perf_events", 8192)
+	reader, err := cssBpf.EventPipeByName(childCtx, "cgroup_perf_events", bpf.DefaultPerfEventBufferBytes)
 	if err != nil {
 		return fmt.Errorf("create event pipe: %w", err)
 	}

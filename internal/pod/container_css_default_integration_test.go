@@ -87,7 +87,7 @@ func TestCgroupSubsysIDIntegration(t *testing.T) {
 		}
 	})
 
-	reader, err := oracle.EventPipeByName(ctx, cgroupSubsysIDEventMap, 8192)
+	reader, err := oracle.EventPipeByName(ctx, cgroupSubsysIDEventMap, bpf.DefaultPerfEventBufferBytes)
 	if err != nil {
 		t.Fatalf("open BPF event map %q: %v", cgroupSubsysIDEventMap, err)
 	}

@@ -651,7 +651,7 @@ func (ras *rasTracing) Start(ctx context.Context) error {
 	childCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	reader, err := b.AttachAndEventPipe(childCtx, "ras_event_map", 8192)
+	reader, err := b.AttachAndEventPipe(childCtx, "ras_event_map", bpf.DefaultPerfEventBufferBytes)
 	if err != nil {
 		return fmt.Errorf("attach ras event pipe: %w", err)
 	}

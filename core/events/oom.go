@@ -118,7 +118,7 @@ func (c *oomCollector) Start(ctx context.Context) error {
 	childCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	reader, err := b.AttachAndEventPipe(childCtx, "oom_perf_events", 8192)
+	reader, err := b.AttachAndEventPipe(childCtx, "oom_perf_events", bpf.DefaultPerfEventBufferBytes)
 	if err != nil {
 		return err
 	}
