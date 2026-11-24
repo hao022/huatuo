@@ -150,6 +150,17 @@ For more information, visit [https://docs.huatuo.tech](https://docs.huatuo.tech/
   <img src="https://contrib.rocks/image?repo=ccfos/huatuo" />
 </a>
 
+## Community Maintainers
+
+| Name | Role | Focus |
+| :--- | :--- | :--- |
+| [Tonghao Zhang](https://x.com/hao_0022) | Community Founder | Linux kernel core developer, contributor to the networking subsystem, contributor to the OVS/DPDK, and head of system software at DiDi. |
+| [Jason Xing](https://www.linkedin.com/in/jasonxing/) | Technical Oversight Committee (TOC) | Linux Kernel Netdev Reviewer, Netdev Conf PC Member, LPC Observability MC Runner, IETF TCP RST Diagnostic Payload Founder. |
+| [Lance Yang](https://github.com/ioworker0) | Technical Oversight Committee (TOC) | Linux kernel core developer focused on MM. THP and RMAP reviewer, and hung task detector maintainer. |
+| [Leon Hwang](https://github.com/Asphaltt) | Technical Oversight Committee (TOC) | Linux kernel core developer focused on the BPF subsystem and author of bpfsnoop. |
+| [Menglong Dong](https://www.linkedin.com/in/menglong-dong) | Technical Oversight Committee (TOC) | Linux kernel core developer focused on the networking and BPF subsystems and author of nettrace. |
+| [Nan Li](https://github.com/lanenson) | Community Project Maintainer | Linux kernel core developer focused on storage and filesystems. Reviewer for the Linux kernel RAID subsystem. |
+
 ## Contact Us
 - WeChat Group and Official Account:
 

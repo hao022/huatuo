@@ -159,6 +159,17 @@ func updateNodeConfig(ctx context.Context, address client.NodeAddress) error {
   <img src="https://contrib.rocks/image?repo=ccfos/huatuo" />
 </a>
 
+## 社区维护者
+
+| 姓名 | 社区角色 | 技术方向 |
+| :--- | :--- | :--- |
+| [Tonghao Zhang](https://x.com/hao_0022) | 社区创始人 | Linux 内核核心开发者，网络子系统重要贡献者，OVS/DPDK 核心贡献者，滴滴系统软件负责人； |
+| [Jason Xing](https://www.linkedin.com/in/jasonxing/) | 技术指导委员会（TOC） | Linux Kernel Netdev Reviewer, Netdev Conf PC Member, LPC Observability MC Runner, IETF TCP RST Diagnostic Payload Founder. |
+| [Lance Yang](https://github.com/ioworker0) | 技术指导委员会（TOC） | Linux 内核核心开发者，深耕内存管理子系统。任 THP 与 RMAP Reviewer，hung task detector 子系统 Maintainer。 |
+| [Leon Hwang](https://github.com/Asphaltt) | 技术指导委员会（TOC） | Linux 内核核心开发者，深耕 BPF 子系统，bpfsnoop 作者。 |
+| [Menglong Dong](https://www.linkedin.com/in/menglong-dong) | 技术指导委员会（TOC） | Linux 内核核心开发者，深耕网络和 BPF 子系统，nettrace 作者。 |
+| [Nan Li](https://github.com/lanenson) | 社区项目维护者 | Linux 内核核心开发者，深耕存储文件系统。任 RAID 子系统 Reviewer。 |
+
 ## 联系我们
 - 微信群（备注姓名+单位）和公众号：
 
