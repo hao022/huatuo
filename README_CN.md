@@ -122,12 +122,14 @@ HUATUO 已进入 [CNCF Landscape](https://landscape.cncf.io/?item=observability-
 
 | 姓名 | 社区角色 | 技术方向 |
 | :--- | :--- | :--- |
-| [Tonghao Zhang](https://x.com/hao_0022) | 社区创始人 | Linux 内核核心开发者，网络子系统重要贡献者，OVS/DPDK 核心贡献者，滴滴系统软件负责人； |
-| [Jason Xing](https://www.linkedin.com/in/jasonxing/) | 技术指导委员会（TOC） | Linux Kernel Netdev Reviewer, Netdev Conf PC Member, LPC Observability MC Runner, IETF TCP RST Diagnostic Payload Founder. |
-| [Lance Yang](https://github.com/ioworker0) | 技术指导委员会（TOC） | Linux 内核核心开发者，深耕内存管理子系统。任 THP 与 RMAP Reviewer，hung task detector 子系统 Maintainer。 |
-| [Leon Hwang](https://github.com/Asphaltt) | 技术指导委员会（TOC） | Linux 内核核心开发者，深耕 BPF 子系统，bpfsnoop 作者。 |
-| [Menglong Dong](https://www.linkedin.com/in/menglong-dong) | 技术指导委员会（TOC） | Linux 内核核心开发者，深耕网络和 BPF 子系统，nettrace 作者。 |
-| [Nan Li](https://github.com/lanenson) | 社区项目维护者 | Linux 内核核心开发者，深耕存储文件系统。任 RAID 子系统 Reviewer。 |
+| [Tonghao Zhang](https://x.com/hao_0022) | 维护者 | Linux 内核开发者，eBPF、网络、OVS 和 DPDK 贡献者。 |
+| [Jason Xing](https://www.linkedin.com/in/jasonxing/) | TOC 成员 | Linux 内核 Netdev 审阅者、Netdev Conf 程序委员会成员、LPC Observability 微型会议组织者、IETF TCP RST Diagnostic Payload 发起人。 |
+| [Lance Yang](https://github.com/ioworker0) | TOC 成员 | Linux 内核开发者、THP 与 RMAP 审阅者、hung task detector 维护者。 |
+| [Leon Hwang](https://github.com/Asphaltt) | TOC 成员 | Linux 内核开发者、eBPF 子系统贡献者、bpfsnoop 作者。 |
+| [Menglong Dong](https://www.linkedin.com/in/menglong-dong) | TOC 成员 | Linux 内核开发者、eBPF 与网络子系统贡献者、nettrace 作者。 |
+| [Nan Li](https://github.com/lanenson) | 维护者 | Linux 内核开发者、RAID 子系统审阅者。 |
+
+TOC：Technical Oversight Committee（技术指导委员会）。
 
 ## 社区共建
 - ❇️ 真诚欢迎每一位用户、开发者、公司以及组织，使用华佗监控、积极反馈 Bug、提交功能需求、分享最佳实践，共建专业、活跃的华佗开源社区。

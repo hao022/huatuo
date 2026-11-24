@@ -112,12 +112,14 @@ The project supports kernel version 4.18 and later. The following kernel and OS 
 
 | Name | Role | Focus |
 | :--- | :--- | :--- |
-| [Tonghao Zhang](https://x.com/hao_0022) | Community Founder/Maintainer | Linux kernel developer, eBPF/networking subsystem contributor, OVS/DPDK contributor. |
-| [Jason Xing](https://www.linkedin.com/in/jasonxing/) | TOC | Linux Kernel Netdev Reviewer, Netdev Conf PC Member, LPC Observability MC Runner, IETF TCP RST Diagnostic Payload Founder. |
-| [Lance Yang](https://github.com/ioworker0) | TOC | Linux kernel developer, THP and RMAP reviewer and hung task detector maintainer. |
-| [Leon Hwang](https://github.com/Asphaltt) | TOC | Linux kernel developer, BPF subsystem contributor and author of bpfsnoop. |
-| [Menglong Dong](https://www.linkedin.com/in/menglong-dong) | TOC | Linux kernel developer, eBPF/networking subsystems contributor and author of nettrace. |
-| [Nan Li](https://github.com/lanenson) | Community Project Maintainer | Linux kernel developer, Linux kernel RAID subsystem reviewer. |
+| [Tonghao Zhang](https://x.com/hao_0022) | Founder & Maintainer | Linux kernel developer and contributor to eBPF, networking, OVS, and DPDK. |
+| [Jason Xing](https://www.linkedin.com/in/jasonxing/) | TOC Member | Linux kernel Netdev reviewer, Netdev Conf program committee member, LPC Observability microconference organizer, and IETF TCP RST Diagnostic Payload founder. |
+| [Lance Yang](https://github.com/ioworker0) | TOC Member | Linux kernel developer, THP and RMAP reviewer, and hung task detector maintainer. |
+| [Leon Hwang](https://github.com/Asphaltt) | TOC Member | Linux kernel developer, eBPF subsystem contributor, and author of bpfsnoop. |
+| [Menglong Dong](https://www.linkedin.com/in/menglong-dong) | TOC Member | Linux kernel developer, eBPF and networking subsystem contributor, and author of nettrace. |
+| [Nan Li](https://github.com/lanenson) | Maintainer | Linux kernel developer and RAID subsystem reviewer. |
+
+TOC: Technical Oversight Committee.
 
 ## Co-Building
 
