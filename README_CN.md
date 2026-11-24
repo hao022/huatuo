@@ -93,6 +93,49 @@ HUATUO 已进入 [CNCF Landscape](https://landscape.cncf.io/?item=observability-
 - **注意**
   请勿将 latest 标签的镜像部署至生产环境，此为开发测试分支。请使用正式发版的镜像或二进制文件。
 
+## 内核版本
+
+支持 4.18 及之后的所有内核版本。以下为主要测试过的内核与操作系统发行版。
+
+| HUATUO | Kernel | OS |
+| :--- | :--- | :--- |
+| 1.0.0 | 4.18.x | CentOS 8.x |
+| 2.4.0 | 4.18.x | Rocky Linux 8.10 |
+| 1.0.0 | 5.4.x | OpenCloudOS V8 |
+| 1.0.0 | 5.4.x | Ubuntu 20.04.6 LTS |
+| 1.0.0 | 5.10.x | Anolis OS 8.10 |
+| 1.0.0 | 5.10.x | openEuler 22.03 LTS-SP4 |
+| 2.4.0 | 5.14.x | Rocky Linux 9.8 |
+| 1.0.0 | 5.15.x | Ubuntu 22.04.5 LTS |
+| 2.4.0 | 6.1.x | Debian 12 (bookworm) |
+| 1.0.0 | 6.6.x | Anolis OS 23.3 |
+| 1.0.0 | 6.6.x | OpenCloudOS V9 |
+| 1.0.0 | 6.6.x | openEuler 24.03 LTS-SP4 |
+| 1.0.0 | 6.8.x | Ubuntu 24.04.4 LTS |
+| 2.4.0 | 6.12.x | Debian 13 (trixie) |
+| 1.0.0 | 6.14.x | Fedora 42 |
+| 2.4.0 | 6.19.x | Fedora Linux 44 |
+| 2.3.0 | 7.0.x | Ubuntu 26.04 LTS |
+
+
+## 社区维护者
+
+| 姓名 | 社区角色 | 技术方向 |
+| :--- | :--- | :--- |
+| [Tonghao Zhang](https://x.com/hao_0022) | 社区创始人 | Linux 内核核心开发者，网络子系统重要贡献者，OVS/DPDK 核心贡献者，滴滴系统软件负责人； |
+| [Jason Xing](https://www.linkedin.com/in/jasonxing/) | 技术指导委员会（TOC） | Linux Kernel Netdev Reviewer, Netdev Conf PC Member, LPC Observability MC Runner, IETF TCP RST Diagnostic Payload Founder. |
+| [Lance Yang](https://github.com/ioworker0) | 技术指导委员会（TOC） | Linux 内核核心开发者，深耕内存管理子系统。任 THP 与 RMAP Reviewer，hung task detector 子系统 Maintainer。 |
+| [Leon Hwang](https://github.com/Asphaltt) | 技术指导委员会（TOC） | Linux 内核核心开发者，深耕 BPF 子系统，bpfsnoop 作者。 |
+| [Menglong Dong](https://www.linkedin.com/in/menglong-dong) | 技术指导委员会（TOC） | Linux 内核核心开发者，深耕网络和 BPF 子系统，nettrace 作者。 |
+| [Nan Li](https://github.com/lanenson) | 社区项目维护者 | Linux 内核核心开发者，深耕存储文件系统。任 RAID 子系统 Reviewer。 |
+
+## 社区共建
+- ❇️ 真诚欢迎每一位用户、开发者、公司以及组织，使用华佗监控、积极反馈 Bug、提交功能需求、分享最佳实践，共建专业、活跃的华佗开源社区。
+- ❤️ 贡献者
+<a href="https://github.com/ccfos/huatuo/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=ccfos/huatuo" />
+</a>
+
 ## Go 客户端
 
 对外提供的 Go 客户端位于 `client/`。Node 客户端文件使用 `node_` 前缀。
@@ -123,52 +166,9 @@ func updateNodeConfig(ctx context.Context, address client.NodeAddress) error {
 }
 ```
 
-## 内核版本
-
-支持 4.18 及之后的所有内核版本。以下为主要测试过的内核与操作系统发行版。
-
-| HUATUO | Kernel | OS |
-| :--- | :--- | :--- |
-| 1.0.0 | 4.18.x | CentOS 8.x |
-| 2.4.0 | 4.18.x | Rocky Linux 8.10 |
-| 1.0.0 | 5.4.x | OpenCloudOS V8 |
-| 1.0.0 | 5.4.x | Ubuntu 20.04.6 LTS |
-| 1.0.0 | 5.10.x | Anolis OS 8.10 |
-| 1.0.0 | 5.10.x | openEuler 22.03 LTS-SP4 |
-| 2.4.0 | 5.14.x | Rocky Linux 9.8 |
-| 1.0.0 | 5.15.x | Ubuntu 22.04.5 LTS |
-| 2.4.0 | 6.1.x | Debian 12 (bookworm) |
-| 1.0.0 | 6.6.x | Anolis OS 23.3 |
-| 1.0.0 | 6.6.x | OpenCloudOS V9 |
-| 1.0.0 | 6.6.x | openEuler 24.03 LTS-SP4 |
-| 1.0.0 | 6.8.x | Ubuntu 24.04.4 LTS |
-| 2.4.0 | 6.12.x | Debian 13 (trixie) |
-| 1.0.0 | 6.14.x | Fedora 42 |
-| 2.4.0 | 6.19.x | Fedora Linux 44 |
-| 2.3.0 | 7.0.x | Ubuntu 26.04 LTS |
-
-
 ## 文档
 
 完整文档请访问: [https://docs.huatuo.tech/](https://docs.huatuo.tech/)
-
-## 社区共建
-- ❇️ 真诚欢迎每一位用户、开发者、公司以及组织，使用华佗监控、积极反馈 Bug、提交功能需求、分享最佳实践，共建专业、活跃的华佗开源社区。
-- ❤️ 贡献者
-<a href="https://github.com/ccfos/huatuo/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=ccfos/huatuo" />
-</a>
-
-## 社区维护者
-
-| 姓名 | 社区角色 | 技术方向 |
-| :--- | :--- | :--- |
-| [Tonghao Zhang](https://x.com/hao_0022) | 社区创始人 | Linux 内核核心开发者，网络子系统重要贡献者，OVS/DPDK 核心贡献者，滴滴系统软件负责人； |
-| [Jason Xing](https://www.linkedin.com/in/jasonxing/) | 技术指导委员会（TOC） | Linux Kernel Netdev Reviewer, Netdev Conf PC Member, LPC Observability MC Runner, IETF TCP RST Diagnostic Payload Founder. |
-| [Lance Yang](https://github.com/ioworker0) | 技术指导委员会（TOC） | Linux 内核核心开发者，深耕内存管理子系统。任 THP 与 RMAP Reviewer，hung task detector 子系统 Maintainer。 |
-| [Leon Hwang](https://github.com/Asphaltt) | 技术指导委员会（TOC） | Linux 内核核心开发者，深耕 BPF 子系统，bpfsnoop 作者。 |
-| [Menglong Dong](https://www.linkedin.com/in/menglong-dong) | 技术指导委员会（TOC） | Linux 内核核心开发者，深耕网络和 BPF 子系统，nettrace 作者。 |
-| [Nan Li](https://github.com/lanenson) | 社区项目维护者 | Linux 内核核心开发者，深耕存储文件系统。任 RAID 子系统 Reviewer。 |
 
 ## 联系我们
 - 微信群（备注姓名+单位）和公众号：

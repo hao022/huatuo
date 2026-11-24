@@ -84,6 +84,49 @@ HUATUO is now listed in the [CNCF Landscape](https://landscape.cncf.io/?item=obs
 
   Do not deploy images with the latest tag to production environments, as this is a development and testing image. Use a formal release image or binary.
 
+## Kernel Versions
+
+The project supports kernel version 4.18 and later. The following kernel and OS distribution are primarily tested.
+
+| HUATUO | Kernel | OS |
+| :--- | :--- | :--- |
+| 1.0.0 | 4.18.x | CentOS 8.x |
+| 2.4.0 | 4.18.x | Rocky Linux 8.10 |
+| 1.0.0 | 5.4.x | OpenCloudOS V8 |
+| 1.0.0 | 5.4.x | Ubuntu 20.04.6 LTS |
+| 1.0.0 | 5.10.x | Anolis OS 8.10 |
+| 1.0.0 | 5.10.x | openEuler 22.03 LTS-SP4 |
+| 2.4.0 | 5.14.x | Rocky Linux 9.8 |
+| 1.0.0 | 5.15.x | Ubuntu 22.04.5 LTS |
+| 2.4.0 | 6.1.x | Debian 12 (bookworm) |
+| 1.0.0 | 6.6.x | Anolis OS 23.3 |
+| 1.0.0 | 6.6.x | OpenCloudOS V9 |
+| 1.0.0 | 6.6.x | openEuler 24.03 LTS-SP4 |
+| 1.0.0 | 6.8.x | Ubuntu 24.04.4 LTS |
+| 2.4.0 | 6.12.x | Debian 13 (trixie) |
+| 1.0.0 | 6.14.x | Fedora 42 |
+| 2.4.0 | 6.19.x | Fedora Linux 44 |
+| 2.3.0 | 7.0.x | Ubuntu 26.04 LTS |
+
+## Community Maintainers
+
+| Name | Role | Focus |
+| :--- | :--- | :--- |
+| [Tonghao Zhang](https://x.com/hao_0022) | Community Founder/Maintainer | Linux kernel developer, eBPF/networking subsystem contributor, OVS/DPDK contributor. |
+| [Jason Xing](https://www.linkedin.com/in/jasonxing/) | TOC | Linux Kernel Netdev Reviewer, Netdev Conf PC Member, LPC Observability MC Runner, IETF TCP RST Diagnostic Payload Founder. |
+| [Lance Yang](https://github.com/ioworker0) | TOC | Linux kernel developer, THP and RMAP reviewer and hung task detector maintainer. |
+| [Leon Hwang](https://github.com/Asphaltt) | TOC | Linux kernel developer, BPF subsystem contributor and author of bpfsnoop. |
+| [Menglong Dong](https://www.linkedin.com/in/menglong-dong) | TOC | Linux kernel developer, eBPF/networking subsystems contributor and author of nettrace. |
+| [Nan Li](https://github.com/lanenson) | Community Project Maintainer | Linux kernel developer, Linux kernel RAID subsystem reviewer. |
+
+## Co-Building
+
+- ❇️ We welcome all users, developers, companies, and organizations to use Huatuo, report bugs, submit feature requests, share best practices, and help us build a professional and vibrant open-source community.
+- ❤️ Contributors
+<a href="https://github.com/ccfos/huatuo/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=ccfos/huatuo" />
+</a>
+
 ## Go Client
 
 The public Go client is in `client/`. Node client files use the `node_` prefix.
@@ -114,52 +157,9 @@ func updateNodeConfig(ctx context.Context, address client.NodeAddress) error {
 }
 ```
 
-## Kernel Versions
-
-The project supports kernel version 4.18 and later. The following kernel and OS distribution are primarily tested.
-
-| HUATUO | Kernel | OS |
-| :--- | :--- | :--- |
-| 1.0.0 | 4.18.x | CentOS 8.x |
-| 2.4.0 | 4.18.x | Rocky Linux 8.10 |
-| 1.0.0 | 5.4.x | OpenCloudOS V8 |
-| 1.0.0 | 5.4.x | Ubuntu 20.04.6 LTS |
-| 1.0.0 | 5.10.x | Anolis OS 8.10 |
-| 1.0.0 | 5.10.x | openEuler 22.03 LTS-SP4 |
-| 2.4.0 | 5.14.x | Rocky Linux 9.8 |
-| 1.0.0 | 5.15.x | Ubuntu 22.04.5 LTS |
-| 2.4.0 | 6.1.x | Debian 12 (bookworm) |
-| 1.0.0 | 6.6.x | Anolis OS 23.3 |
-| 1.0.0 | 6.6.x | OpenCloudOS V9 |
-| 1.0.0 | 6.6.x | openEuler 24.03 LTS-SP4 |
-| 1.0.0 | 6.8.x | Ubuntu 24.04.4 LTS |
-| 2.4.0 | 6.12.x | Debian 13 (trixie) |
-| 1.0.0 | 6.14.x | Fedora 42 |
-| 2.4.0 | 6.19.x | Fedora Linux 44 |
-| 2.3.0 | 7.0.x | Ubuntu 26.04 LTS |
-
 ## Documentation
 
 For more information, visit [https://docs.huatuo.tech](https://docs.huatuo.tech/)
-
-## Co-Building
-
-- ❇️ We welcome all users, developers, companies, and organizations to use Huatuo, report bugs, submit feature requests, share best practices, and help us build a professional and vibrant open-source community.
-- ❤️ Contributors
-<a href="https://github.com/ccfos/huatuo/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=ccfos/huatuo" />
-</a>
-
-## Community Maintainers
-
-| Name | Role | Focus |
-| :--- | :--- | :--- |
-| [Tonghao Zhang](https://x.com/hao_0022) | Community Founder/Maintainer | Linux kernel developer, eBPF/networking subsystem contributor, OVS/DPDK contributor. |
-| [Jason Xing](https://www.linkedin.com/in/jasonxing/) | TOC | Linux Kernel Netdev Reviewer, Netdev Conf PC Member, LPC Observability MC Runner, IETF TCP RST Diagnostic Payload Founder. |
-| [Lance Yang](https://github.com/ioworker0) | TOC | Linux kernel developer, THP and RMAP reviewer and hung task detector maintainer. |
-| [Leon Hwang](https://github.com/Asphaltt) | TOC | Linux kernel developer, BPF subsystem contributor and author of bpfsnoop. |
-| [Menglong Dong](https://www.linkedin.com/in/menglong-dong) | TOC | Linux kernel developer, eBPF/networking subsystems contributor and author of nettrace. |
-| [Nan Li](https://github.com/lanenson) | Community Project Maintainer | Linux kernel developer, Linux kernel RAID subsystem reviewer. |
 
 ## Contact Us
 - WeChat Group and Official Account:
